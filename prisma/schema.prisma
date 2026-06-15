@@ -1,0 +1,67 @@
+// Prisma schema for PeopleRecruit ATS MVP
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum JobStatus {
+  DRAFT
+  OPEN
+  CLOSED
+}
+
+model Job {
+  id          String      @id @default(cuid())
+  title       String
+  description String      @db.Text
+  status      JobStatus   @default(DRAFT)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  stages      Stage[]
+  candidates  Candidate[]
+
+  @@index([status])
+  @@map("jobs")
+}
+
+model Stage {
+  id              String      @id @default(cuid())
+  name            String
+  orderInPipeline Int
+  jobId           String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  job             Job         @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  candidates      Candidate[]
+
+  @@unique([jobId, orderInPipeline])
+  @@index([jobId])
+  @@map("stages")
+}
+
+model Candidate {
+  id          String   @id @default(cuid())
+  name        String
+  email       String
+  phone       String?
+  resumeLink  String?
+  stageId     String
+  jobId       String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  stage       Stage    @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  job         Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([stageId])
+  @@index([jobId])
+  @@index([email])
+  @@map("candidates")
+}
