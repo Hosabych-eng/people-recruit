@@ -19,6 +19,11 @@ export async function GET(_request: Request, context: RouteContext) {
           include: {
             candidates: {
               orderBy: { createdAt: "asc" },
+              include: {
+                _count: {
+                  select: { candidateNotes: true },
+                },
+              },
             },
           },
         },

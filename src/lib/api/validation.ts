@@ -40,6 +40,8 @@ export function parseCreateJobBody(body: Record<string, unknown>) {
     title: requireString(body.title, "title"),
     description: requireString(body.description, "description"),
     status: parseJobStatus(body.status),
+    location: optionalString(body.location),
+    employmentType: optionalString(body.employmentType),
   };
 }
 
@@ -69,8 +71,48 @@ export function parseCreateCandidateBody(body: Record<string, unknown>) {
     email: requireString(body.email, "email"),
     phone: optionalString(body.phone),
     resumeLink: optionalString(body.resumeLink),
+    expectedSalary: parseOptionalPositiveInt(body.expectedSalary, "expectedSalary"),
+    salaryCurrency: optionalString(body.salaryCurrency),
     jobId: requireString(body.jobId, "jobId"),
     stageId: requireString(body.stageId, "stageId"),
+  };
+}
+
+const APPLICATION_SOURCES = new Set([
+  "DJINNI",
+  "DOU",
+  "LINKEDIN",
+  "ROBOTA_UA",
+  "SNOOPGAME",
+  "MANUAL",
+  "CAREER_SITE",
+]);
+
+function parseApplicationSource(value: unknown) {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== "string" || !APPLICATION_SOURCES.has(value)) {
+    throw new ApiError(400, `Invalid applicationSource: ${String(value)}`);
+  }
+  return value as
+    | "DJINNI"
+    | "DOU"
+    | "LINKEDIN"
+    | "ROBOTA_UA"
+    | "SNOOPGAME"
+    | "MANUAL"
+    | "CAREER_SITE";
+}
+
+export function parseImportCandidateBody(body: Record<string, unknown>) {
+  return {
+    jobId: requireString(body.jobId, "jobId"),
+    stageId: requireString(body.stageId, "stageId"),
+    rawInput: optionalString(body.rawInput),
+    name: optionalString(body.name),
+    email: optionalString(body.email),
+    phone: optionalString(body.phone),
+    resumeLink: optionalString(body.resumeLink),
+    applicationSource: parseApplicationSource(body.applicationSource),
   };
 }
 
@@ -80,7 +122,10 @@ export function parseUpdateCandidateBody(body: Record<string, unknown>) {
     email?: string;
     phone?: string | null;
     resumeLink?: string | null;
+    expectedSalary?: number | null;
+    salaryCurrency?: string | null;
     stageId?: string;
+    isNew?: boolean;
   } = {};
 
   if ("name" in body) updates.name = requireString(body.name, "name");
@@ -92,6 +137,24 @@ export function parseUpdateCandidateBody(body: Record<string, unknown>) {
     updates.resumeLink =
       body.resumeLink === null ? null : optionalString(body.resumeLink) ?? null;
   }
+  if ("expectedSalary" in body) {
+    updates.expectedSalary =
+      body.expectedSalary === null
+        ? null
+        : parseOptionalPositiveInt(body.expectedSalary, "expectedSalary");
+  }
+  if ("salaryCurrency" in body) {
+    updates.salaryCurrency =
+      body.salaryCurrency === null
+        ? null
+        : optionalString(body.salaryCurrency) ?? null;
+  }
+  if ("isNew" in body) {
+    if (typeof body.isNew !== "boolean") {
+      throw new ApiError(400, "isNew must be a boolean");
+    }
+    updates.isNew = body.isNew;
+  }
   if ("stageId" in body) updates.stageId = requireString(body.stageId, "stageId");
 
   if (Object.keys(updates).length === 0) {
@@ -99,6 +162,60 @@ export function parseUpdateCandidateBody(body: Record<string, unknown>) {
   }
 
   return updates;
+}
+
+export function parseCreateStageBody(body: Record<string, unknown>) {
+  return {
+    jobId: requireString(body.jobId, "jobId"),
+    name: requireString(body.name, "name"),
+  };
+}
+
+export function parseUpdateStageBody(body: Record<string, unknown>) {
+  const updates: {
+    name?: string;
+    automationEnabled?: boolean;
+  } = {};
+
+  if ("name" in body) updates.name = requireString(body.name, "name");
+  if ("automationEnabled" in body) {
+    if (typeof body.automationEnabled !== "boolean") {
+      throw new ApiError(400, "automationEnabled must be a boolean");
+    }
+    updates.automationEnabled = body.automationEnabled;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    throw new ApiError(400, "At least one field must be provided for update");
+  }
+
+  return updates;
+}
+
+export function parseReorderStagesBody(body: Record<string, unknown>) {
+  if (!Array.isArray(body.stageIds)) {
+    throw new ApiError(400, "stageIds must be an array");
+  }
+
+  const stageIds = body.stageIds.map((value, index) => {
+    if (typeof value !== "string" || !value.trim()) {
+      throw new ApiError(400, `stageIds[${index}] must be a non-empty string`);
+    }
+    return value.trim();
+  });
+
+  if (stageIds.length === 0) {
+    throw new ApiError(400, "stageIds cannot be empty");
+  }
+
+  return { stageIds };
+}
+
+export function parseCreateKnowledgeArticleBody(body: Record<string, unknown>) {
+  return {
+    title: requireString(body.title, "title"),
+    content: requireString(body.content, "content"),
+  };
 }
 
 export function requireQueryParam(
@@ -118,4 +235,84 @@ export function optionalQueryParam(
 ): string | undefined {
   const value = searchParams.get(key);
   return value?.trim() || undefined;
+}
+
+function parseOptionalPositiveInt(
+  value: unknown,
+  field: string,
+): number | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new ApiError(400, `${field} must be a non-negative integer`);
+  }
+  return parsed;
+}
+
+const INTERVIEW_TYPES = new Set(["ONLINE", "ONSITE", "PHONE"]);
+
+export function parseCreateInterviewBody(body: Record<string, unknown>) {
+  const scheduledAtRaw = requireString(body.scheduledAt, "scheduledAt");
+  const scheduledAt = new Date(scheduledAtRaw);
+  if (Number.isNaN(scheduledAt.getTime())) {
+    throw new ApiError(400, "scheduledAt must be a valid ISO date");
+  }
+
+  const type =
+    body.type === undefined
+      ? "ONLINE"
+      : typeof body.type === "string" && INTERVIEW_TYPES.has(body.type)
+        ? body.type
+        : null;
+
+  if (!type) {
+    throw new ApiError(400, "type must be one of: ONLINE, ONSITE, PHONE");
+  }
+
+  const durationMinutes =
+    parseOptionalPositiveInt(body.durationMinutes, "durationMinutes") ?? 45;
+
+  if (durationMinutes < 15 || durationMinutes > 240) {
+    throw new ApiError(400, "durationMinutes must be between 15 and 240");
+  }
+
+  return {
+    title: requireString(body.title, "title"),
+    scheduledAt,
+    type: type as "ONLINE" | "ONSITE" | "PHONE",
+    durationMinutes,
+  };
+}
+
+export function parseCreateEmailTemplateBody(body: Record<string, unknown>) {
+  return {
+    title: requireString(body.title, "title"),
+    subject: requireString(body.subject, "subject"),
+    body: requireString(body.body, "body"),
+  };
+}
+
+export function parseUpdateEmailTemplateBody(body: Record<string, unknown>) {
+  const updates: {
+    title?: string;
+    subject?: string;
+    body?: string;
+  } = {};
+
+  if ("title" in body) updates.title = requireString(body.title, "title");
+  if ("subject" in body) updates.subject = requireString(body.subject, "subject");
+  if ("body" in body) updates.body = requireString(body.body, "body");
+
+  if (Object.keys(updates).length === 0) {
+    throw new ApiError(400, "At least one field must be provided for update");
+  }
+
+  return updates;
+}
+
+export function parseSendCandidateEmailBody(body: Record<string, unknown>) {
+  return {
+    subject: requireString(body.subject, "subject"),
+    body: requireString(body.body, "body"),
+  };
 }

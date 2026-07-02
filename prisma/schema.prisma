@@ -15,28 +15,171 @@ enum JobStatus {
   CLOSED
 }
 
-model Job {
-  id          String      @id @default(cuid())
-  title       String
-  description String      @db.Text
-  status      JobStatus   @default(DRAFT)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+enum WorkforceEventType {
+  RECRUITING_IN
+  RECRUITING_OUT
+  ONBOARDING
+  OFFBOARDING
+}
 
-  stages      Stage[]
-  candidates  Candidate[]
+enum UserRole {
+  ADMIN
+  RECRUITER
+}
+
+enum UserStatus {
+  ACTIVE
+  PENDING
+}
+
+enum ApplicationSource {
+  DJINNI
+  DOU
+  LINKEDIN
+  ROBOTA_UA
+  SNOOPGAME
+  MANUAL
+  CAREER_SITE
+}
+
+enum InterviewStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum InterviewType {
+  ONLINE
+  ONSITE
+  PHONE
+}
+
+enum EmailMessageStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+  RECEIVED
+}
+
+enum EmailDirection {
+  OUTBOUND
+  INBOUND
+}
+
+enum CandidateDocumentCategory {
+  RESUME
+  PORTFOLIO
+  OTHER
+}
+
+enum TestAssignmentDeliveryStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+model User {
+  id            String     @id @default(cuid())
+  name          String?
+  email         String?    @unique
+  emailVerified DateTime?
+  image         String?
+  role          UserRole   @default(RECRUITER)
+  status        UserStatus @default(PENDING)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+
+  @@index([role])
+  @@index([status])
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Invitation {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  role      UserRole @default(RECRUITER)
+  token     String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([expiresAt])
+  @@map("invitations")
+}
+
+model Job {
+  id               String      @id @default(cuid())
+  title            String
+  description      String      @db.Text
+  responsibilities String?     @db.Text
+  requiredSkills   String?     @db.Text
+  weOffer          String?     @db.Text
+  location         String?
+  employmentType   String?
+  status           JobStatus   @default(DRAFT)
+  headcount        Int         @default(1)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  stages          Stage[]
+  candidates      Candidate[]
+  workforceEvents WorkforceEvent[]
 
   @@index([status])
   @@map("jobs")
 }
 
 model Stage {
-  id              String      @id @default(cuid())
-  name            String
-  orderInPipeline Int
-  jobId           String
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id                String      @id @default(cuid())
+  name              String
+  orderInPipeline   Int
+  automationEnabled Boolean     @default(false)
+  jobId             String
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 
   job             Job         @relation(fields: [jobId], references: [id], onDelete: Cascade)
   candidates      Candidate[]
@@ -47,21 +190,194 @@ model Stage {
 }
 
 model Candidate {
-  id          String   @id @default(cuid())
-  name        String
-  email       String
-  phone       String?
-  resumeLink  String?
-  stageId     String
-  jobId       String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                String             @id @default(cuid())
+  name              String
+  email             String?
+  phone             String?
+  resumeLink        String?
+  expectedSalary    Int?
+  salaryCurrency    String?            @default("USD")
+  applicationSource ApplicationSource  @default(MANUAL)
+  score             Int?
+  emailsSent        Int                @default(0)
+  emailsReceived    Int                @default(0)
+  isNew             Boolean            @default(true)
+  stageId           String
+  jobId             String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
-  stage       Stage    @relation(fields: [stageId], references: [id], onDelete: Restrict)
-  job         Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  stage           Stage            @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  job             Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  workforceEvents WorkforceEvent[]
+  candidateNotes  CandidateNote[]
+  interviews      Interview[]
+  emailMessages   EmailMessage[]
+  testAssignments CandidateTestAssignment[]
+  documents       CandidateDocument[]
 
   @@index([stageId])
   @@index([jobId])
   @@index([email])
   @@map("candidates")
+}
+
+model CandidateNote {
+  id             String   @id @default(cuid())
+  content        String   @db.Text
+  candidateId    String
+  authorId       String?
+  authorName     String
+  authorRole     String?
+  authorPhotoUrl String?
+  createdAt      DateTime @default(now())
+
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@index([candidateId, createdAt])
+  @@map("candidate_notes")
+}
+
+model Interview {
+  id              String          @id @default(cuid())
+  candidateId     String
+  title           String
+  status          InterviewStatus @default(PENDING)
+  scheduledAt     DateTime
+  type            InterviewType   @default(ONLINE)
+  durationMinutes Int             @default(45)
+  messageBody     String?         @db.Text
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  candidate     Candidate      @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  emailMessages EmailMessage[]
+
+  @@index([candidateId, scheduledAt])
+  @@map("interviews")
+}
+
+model EmailMessage {
+  id             String             @id @default(cuid())
+  candidateId    String
+  interviewId    String?
+  direction      EmailDirection     @default(OUTBOUND)
+  status         EmailMessageStatus @default(QUEUED)
+  senderName     String
+  senderEmail    String
+  recipientName  String
+  recipientEmail String
+  subject        String
+  body           String             @db.Text
+  sentAt         DateTime           @default(now())
+  providerId     String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  candidate Candidate  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  interview Interview? @relation(fields: [interviewId], references: [id], onDelete: SetNull)
+
+  @@index([candidateId, sentAt])
+  @@index([interviewId])
+  @@map("email_messages")
+}
+
+model WorkforceEvent {
+  id          String             @id @default(cuid())
+  type        WorkforceEventType
+  personName  String
+  jobTitle    String?
+  note        String?
+  occurredAt  DateTime           @default(now())
+  candidateId String?
+  jobId       String?
+  createdAt   DateTime           @default(now())
+
+  candidate Candidate? @relation(fields: [candidateId], references: [id], onDelete: SetNull)
+  job       Job?       @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  @@index([type, occurredAt])
+  @@index([occurredAt])
+  @@map("workforce_events")
+}
+
+model KnowledgeArticle {
+  id         String   @id @default(cuid())
+  title      String
+  content    String   @db.Text
+  authorId   String?
+  authorName String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([createdAt])
+  @@map("knowledge_articles")
+}
+
+model TestAssignmentTemplate {
+  id             String   @id @default(cuid())
+  title          String
+  description    String?  @db.Text
+  fileName       String
+  filePath       String
+  mimeType       String
+  fileSize       Int
+  uploadedById   String?
+  uploadedByName String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  assignments CandidateTestAssignment[]
+
+  @@index([createdAt])
+  @@map("test_assignment_templates")
+}
+
+model CandidateTestAssignment {
+  id             String                       @id @default(cuid())
+  candidateId    String
+  templateId     String
+  sentById       String?
+  sentByName     String
+  status         TestAssignmentDeliveryStatus @default(QUEUED)
+  gmailMessageId String?
+  sentAt         DateTime?
+  createdAt      DateTime                     @default(now())
+
+  candidate Candidate              @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  template  TestAssignmentTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+
+  @@index([candidateId, createdAt])
+  @@map("candidate_test_assignments")
+}
+
+model CandidateDocument {
+  id             String                    @id @default(cuid())
+  candidateId    String
+  category       CandidateDocumentCategory @default(OTHER)
+  title          String
+  fileName       String
+  filePath       String
+  mimeType       String
+  fileSize       Int
+  uploadedById   String?
+  uploadedByName String
+  createdAt      DateTime                  @default(now())
+
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@map("candidate_documents")
+}
+
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  title     String
+  subject   String
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdAt])
+  @@map("email_templates")
 }

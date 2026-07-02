@@ -1,5 +1,5 @@
-import { PipelineView } from "@/components/pipeline/PipelineView";
+import { redirect } from "next/navigation";
 
 export default function Home() {
-  return <PipelineView />;
+  redirect("/careers");
 }

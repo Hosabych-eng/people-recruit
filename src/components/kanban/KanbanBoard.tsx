@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import type { Candidate } from "@prisma/client";
+import type { PipelineCandidate } from "@/types";
 import type { JobWithPipeline } from "@/types";
 import {
   DndContext,
@@ -14,9 +14,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { KanbanColumn } from "@/components/kanban/KanbanColumn";
-import {
-  CandidateCardPreview,
-} from "@/components/kanban/CandidateCard";
+import { CandidateCardPreview } from "@/components/kanban/CandidateCard";
 import { api } from "@/lib/api/client";
 import {
   CANDIDATE_PREFIX,
@@ -24,22 +22,29 @@ import {
   getCandidateStageId,
   moveCandidateBetweenStages,
   resolveTargetStageId,
+  type CandidateSortOrder,
 } from "@/lib/pipeline-utils";
 
 type KanbanBoardProps = {
   pipeline: JobWithPipeline;
+  fullPipeline: JobWithPipeline;
+  sortOrder: CandidateSortOrder;
   onPipelineChange: (pipeline: JobWithPipeline) => void;
-  onSelectCandidate: (candidate: Candidate) => void;
+  onSelectCandidate: (candidate: PipelineCandidate) => void;
   onError: (message: string) => void;
 };
 
 export function KanbanBoard({
   pipeline,
+  fullPipeline,
+  sortOrder,
   onPipelineChange,
   onSelectCandidate,
   onError,
 }: KanbanBoardProps) {
-  const [activeCandidate, setActiveCandidate] = useState<Candidate | null>(null);
+  const [activeCandidate, setActiveCandidate] = useState<PipelineCandidate | null>(
+    null,
+  );
   const [isUpdating, setIsUpdating] = useState(false);
 
   const sensors = useSensors(
@@ -54,10 +59,10 @@ export function KanbanBoard({
       if (!activeId.startsWith(CANDIDATE_PREFIX)) return;
 
       const candidateId = activeId.slice(CANDIDATE_PREFIX.length);
-      const candidate = findCandidateInPipeline(pipeline, candidateId);
+      const candidate = findCandidateInPipeline(fullPipeline, candidateId);
       setActiveCandidate(candidate);
     },
-    [pipeline],
+    [fullPipeline],
   );
 
   const handleDragEnd = useCallback(
@@ -71,16 +76,16 @@ export function KanbanBoard({
       if (!activeId.startsWith(CANDIDATE_PREFIX)) return;
 
       const candidateId = activeId.slice(CANDIDATE_PREFIX.length);
-      const sourceStageId = getCandidateStageId(pipeline, candidateId);
-      const targetStageId = resolveTargetStageId(pipeline, String(over.id));
+      const sourceStageId = getCandidateStageId(fullPipeline, candidateId);
+      const targetStageId = resolveTargetStageId(fullPipeline, String(over.id));
 
       if (!sourceStageId || !targetStageId || sourceStageId === targetStageId) {
         return;
       }
 
-      const previousPipeline = pipeline;
+      const previousPipeline = fullPipeline;
       const optimisticPipeline = moveCandidateBetweenStages(
-        pipeline,
+        fullPipeline,
         candidateId,
         targetStageId,
       );
@@ -101,7 +106,7 @@ export function KanbanBoard({
         setIsUpdating(false);
       }
     },
-    [onError, onPipelineChange, pipeline],
+    [onError, onPipelineChange, fullPipeline],
   );
 
   return (
@@ -118,12 +123,13 @@ export function KanbanBoard({
           </div>
         )}
 
-        <div className="flex gap-4 overflow-x-auto pb-4">
+        <div className="flex gap-4 overflow-x-auto pb-6 [-ms-overflow-style:none] [scrollbar-width:thin]">
           {pipeline.stages.map((stage, index) => (
             <KanbanColumn
               key={stage.id}
               stage={stage}
               index={index}
+              sortOrder={sortOrder}
               onSelectCandidate={onSelectCandidate}
             />
           ))}

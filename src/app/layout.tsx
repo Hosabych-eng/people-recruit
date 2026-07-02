@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AuthProviders } from "@/components/auth/AuthProviders";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PeopleRecruit | ATS Pipeline",
-  description: "Modern applicant tracking and recruiting pipeline",
+  title: "PeopleRecruit | HR Workspace",
+  description: "Recruiting pipeline and workforce insights",
 };
 
 export default function RootLayout({
@@ -27,7 +28,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <AuthProviders>{children}</AuthProviders>
       </body>
     </html>
   );

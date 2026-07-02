@@ -4,6 +4,7 @@ export const DEFAULT_PIPELINE_STAGES = [
   { name: "Interview", orderInPipeline: 2 },
   { name: "Offered", orderInPipeline: 3 },
   { name: "Hired", orderInPipeline: 4 },
+  { name: "Rejected", orderInPipeline: 5 },
 ] as const;
 
 export type PipelineStageName =

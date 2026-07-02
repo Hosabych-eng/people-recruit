@@ -1,0 +1,41 @@
+.careers-theme {
+  --career-accent: #15803d;
+  --career-accent-strong: #166534;
+  --career-accent-soft: #f0fdf4;
+}
+
+.careers-theme .bg-career-accent {
+  background-color: var(--career-accent);
+}
+
+.careers-theme .bg-career-accent-strong {
+  background-color: var(--career-accent-strong);
+}
+
+.careers-theme .bg-career-accent\/10 {
+  background-color: color-mix(in srgb, var(--career-accent) 10%, white);
+}
+
+.careers-theme .border-career-accent\/20 {
+  border-color: color-mix(in srgb, var(--career-accent) 20%, transparent);
+}
+
+.careers-theme .text-career-accent {
+  color: var(--career-accent);
+}
+
+.careers-theme .text-career-accent-strong {
+  color: var(--career-accent-strong);
+}
+
+.careers-theme .hover\:text-career-accent-strong:hover {
+  color: var(--career-accent-strong);
+}
+
+.careers-theme .hover\:text-career-accent:hover {
+  color: var(--career-accent);
+}
+
+.careers-theme .hover\:bg-career-accent-strong\/90:hover {
+  background-color: color-mix(in srgb, var(--career-accent-strong) 90%, black);
+}

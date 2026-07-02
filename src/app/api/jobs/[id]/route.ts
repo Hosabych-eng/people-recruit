@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { getJobOrThrow } from "@/lib/api/helpers";
+import { requireStaffUser } from "@/lib/auth/server";
 import {
   ApiError,
   errorResponse,
@@ -22,6 +23,11 @@ export async function GET(_request: Request, context: RouteContext) {
       include: {
         stages: {
           orderBy: { orderInPipeline: "asc" },
+          include: {
+            _count: {
+              select: { candidates: true },
+            },
+          },
         },
         _count: {
           select: { candidates: true },
@@ -37,6 +43,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
+    await requireStaffUser();
     const { id } = await context.params;
     await getJobOrThrow(id);
 
@@ -62,6 +69,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
+    await requireStaffUser();
     const { id } = await context.params;
     await getJobOrThrow(id);
 

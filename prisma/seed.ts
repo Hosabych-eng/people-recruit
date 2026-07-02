@@ -3,6 +3,36 @@ import { DEFAULT_PIPELINE_STAGES } from "../src/lib/constants";
 
 const prisma = new PrismaClient();
 
+const MASTER_ADMIN_EMAIL = "evgeniy.sabadash@snoopgame.net";
+
+async function seedMasterAdmin() {
+  console.log("Seeding master admin user...");
+
+  await prisma.user.upsert({
+    where: { email: MASTER_ADMIN_EMAIL },
+    update: {
+      name: "Yevhenii Sabadash",
+      role: "ADMIN",
+      status: "ACTIVE",
+    },
+    create: {
+      email: MASTER_ADMIN_EMAIL,
+      name: "Yevhenii Sabadash",
+      role: "ADMIN",
+      status: "ACTIVE",
+    },
+  });
+}
+
+async function clearMockRecruitingData() {
+  await prisma.emailMessage.deleteMany();
+  await prisma.interview.deleteMany();
+  await prisma.candidateNote.deleteMany();
+  await prisma.candidate.deleteMany();
+  await prisma.stage.deleteMany();
+  await prisma.job.deleteMany();
+}
+
 async function createJobWithPipeline(
   title: string,
   description: string,
@@ -28,12 +58,8 @@ async function createJobWithPipeline(
   });
 }
 
-async function main() {
-  console.log("Seeding database...");
-
-  await prisma.candidate.deleteMany();
-  await prisma.stage.deleteMany();
-  await prisma.job.deleteMany();
+async function seedMockRecruitingData() {
+  console.log("Seeding mock jobs, stages, and candidates...");
 
   const seniorEngineer = await createJobWithPipeline(
     "Senior Full-Stack Engineer",
@@ -125,9 +151,83 @@ async function main() {
     ],
   });
 
-  console.log(`Created ${3} jobs`);
-  console.log(`Created ${seStages.length + pdStages.length + DEFAULT_PIPELINE_STAGES.length} stages`);
+  console.log(`Created 3 jobs (${draftJob.title} is DRAFT)`);
+  console.log(
+    `Created ${seStages.length + pdStages.length + DEFAULT_PIPELINE_STAGES.length} stages`,
+  );
   console.log(`Created ${candidates.count} candidates`);
+}
+
+const SEED_EMAIL_TEMPLATES = [
+  {
+    title: "Запрошення на співбесіду",
+    subject: "Запрошення на співбесіду: {{job_title}}",
+    body: `Вітаємо, {{candidate_name}}!
+
+Дякуємо за ваш інтерес до вакансії «{{job_title}}». Ми уважно ознайомилися з вашим резюме та хотіли б запросити вас на співбесіду.
+
+Будь ласка, повідомте, які дати та час вам зручні для зустрічі. Ми надішлемо деталі щодо формату та посилання на відеодзвінок.
+
+З повагою,
+{{recruiter_name}}`,
+  },
+  {
+    title: "Надіслати тестове завдання",
+    subject: "Тестове завдання для вакансії «{{job_title}}»",
+    body: `Вітаємо, {{candidate_name}}!
+
+Дякуємо за участь у відборі на позицію «{{job_title}}». Наступний етап — виконання тестового завдання.
+
+Будь ласка, ознайомтеся з умовами у вкладенні та надішліть результат протягом зазначеного терміну. Якщо виникнуть питання — відповідайте на цей лист.
+
+З повагою,
+{{recruiter_name}}`,
+  },
+  {
+    title: "Відмова після розгляду резюме",
+    subject: "Щодо вашої заявки на «{{job_title}}»",
+    body: `Вітаємо, {{candidate_name}}!
+
+Дякуємо за інтерес до вакансії «{{job_title}}» та за час, приділений підготовці заявки.
+
+На жаль, на цьому етапі ми не можемо запропонувати вам продовження процесу відбору. Це рішення не знецінює ваш досвід — зараз ми шукаємо кандидата з іншим профілем під поточні потреби команди.
+
+Бажаємо успіхів у подальшому пошуку!
+
+З повагою,
+{{recruiter_name}}`,
+  },
+] as const;
+
+async function seedEmailTemplates() {
+  console.log("Seeding email templates...");
+
+  for (const template of SEED_EMAIL_TEMPLATES) {
+    const existing = await prisma.emailTemplate.findFirst({
+      where: { title: template.title },
+    });
+
+    if (existing) {
+      await prisma.emailTemplate.update({
+        where: { id: existing.id },
+        data: {
+          subject: template.subject,
+          body: template.body,
+        },
+      });
+    } else {
+      await prisma.emailTemplate.create({ data: template });
+    }
+  }
+
+  console.log(`Seeded ${SEED_EMAIL_TEMPLATES.length} email templates`);
+}
+
+async function main() {
+  await seedMasterAdmin();
+  await clearMockRecruitingData();
+  await seedMockRecruitingData();
+  await seedEmailTemplates();
   console.log("Seed completed.");
 }
 

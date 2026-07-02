@@ -8,8 +8,8 @@ type AppHeaderProps = {
 
 export function AppHeader({ job, candidateCount = 0 }: AppHeaderProps) {
   return (
-    <header className="border-b border-border bg-card px-6 py-4 shadow-sm">
-      <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4">
+    <header className="border-b border-border bg-card px-4 py-4 shadow-sm sm:px-6">
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-muted">
             PeopleRecruit

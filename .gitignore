@@ -33,6 +33,9 @@ Thumbs.db
 prisma/*.db
 prisma/*.db-journal
 
+# Uploaded files
+storage/
+
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
