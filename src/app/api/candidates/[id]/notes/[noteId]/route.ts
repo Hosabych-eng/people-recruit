@@ -14,9 +14,9 @@ type RouteContext = {
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    await requireSessionUser();
+    const session = await requireSessionUser();
     const { id, noteId } = await context.params;
-    await getCandidateOrThrow(id);
+    await getCandidateOrThrow(id, session);
 
     const body = await parseJsonBody<{ content?: unknown }>(request);
     if (typeof body.content !== "string" || !body.content.trim()) {
@@ -44,9 +44,9 @@ export async function PATCH(request: Request, context: RouteContext) {
 
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
-    await requireSessionUser();
+    const session = await requireSessionUser();
     const { id, noteId } = await context.params;
-    await getCandidateOrThrow(id);
+    await getCandidateOrThrow(id, session);
 
     const existing = await prisma.candidateNote.findFirst({
       where: { id: noteId, candidateId: id },

@@ -1,6 +1,8 @@
 import type { ApplicationSource } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ApiError } from "@/lib/api/response";
+import { recruiterCandidateFilter } from "@/lib/auth/access";
+import type { SessionUser } from "@/lib/auth-session";
 import { buildRecruitingAnalytics } from "@/lib/recruiting-analytics";
 import { salaryToUsd } from "@/lib/salary-usd";
 import type { VacancyAnalyticsResponse } from "@/types";
@@ -92,6 +94,7 @@ export async function fetchVacancyAnalytics(
   jobId: string,
   fromInput: Date,
   toInput: Date,
+  user?: SessionUser,
 ): Promise<VacancyAnalyticsResponse> {
   const from = startOfDay(fromInput);
   const to = endOfDay(toInput);
@@ -112,9 +115,13 @@ export async function fetchVacancyAnalytics(
     throw new ApiError(404, "Vacancy not found");
   }
 
+  const candidateWhere = user
+    ? { jobId, ...recruiterCandidateFilter(user) }
+    : { jobId };
+
   const [candidates, interviewCount] = await Promise.all([
     prisma.candidate.findMany({
-      where: { jobId },
+      where: candidateWhere,
       select: {
         id: true,
         name: true,
@@ -134,7 +141,7 @@ export async function fetchVacancyAnalytics(
       },
     }),
     prisma.interview.count({
-      where: { candidate: { jobId } },
+      where: { candidate: candidateWhere },
     }),
   ]);
 

@@ -1,14 +1,14 @@
-import { JobStatus } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { errorResponse, jsonResponse } from "@/lib/api/response";
 import { requireSessionUser } from "@/lib/auth/server";
+import { recruiterJobFilter } from "@/lib/auth/access";
 
 export async function GET() {
   try {
-    await requireSessionUser();
+    const session = await requireSessionUser();
 
     const jobs = await prisma.job.findMany({
-      where: { status: JobStatus.OPEN },
+      where: recruiterJobFilter(session),
       orderBy: { createdAt: "desc" },
       include: {
         stages: {

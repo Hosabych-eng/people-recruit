@@ -98,6 +98,35 @@ export function AddCandidateModal({
     }
   };
 
+  const linkDuplicate = async (updateProfile: boolean) => {
+    if (!duplicateResult?.candidate) return;
+    const response = await fetch(
+      `/api/candidates/${duplicateResult.candidate.id}/link-application`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobId: pipeline.id,
+          stageId: form.stageId,
+          updateProfile: updateProfile
+            ? {
+                name: form.name.trim(),
+                email: form.email.trim(),
+                phone: form.phone.trim() || undefined,
+                resumeLink: form.resumeLink.trim() || undefined,
+              }
+            : undefined,
+        }),
+      },
+    );
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error ?? "Failed to link candidate");
+    }
+    onCreated();
+    onClose();
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="presentation">
       <button
@@ -127,15 +156,36 @@ export function AddCandidateModal({
           </div>
 
           {duplicateResult?.isDuplicate && duplicateResult.history ? (
-            <div className="px-6 py-6">
+            <div className="space-y-4 px-6 py-6">
+              <p className="text-sm font-medium text-foreground">
+                Candidate already exists. Update profile or link to this vacancy?
+              </p>
               <DuplicateCandidatePanel
                 candidate={duplicateResult.candidate}
                 history={duplicateResult.history}
-                onClose={() => {
-                  setDuplicateResult(null);
-                  onClose();
-                }}
               />
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setDuplicateResult(null)}>
+                  Back
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    void linkDuplicate(false).catch((err) => setError(err.message))
+                  }
+                >
+                  Link to vacancy
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() =>
+                    void linkDuplicate(true).catch((err) => setError(err.message))
+                  }
+                >
+                  Update profile & link
+                </Button>
+              </div>
             </div>
           ) : (
           <form onSubmit={handleSubmit} className="space-y-4 px-6 py-6">
@@ -151,7 +201,7 @@ export function AddCandidateModal({
                 value={form.name}
                 onChange={(event) => updateField("name", event.target.value)}
                 className={inputClassName}
-                placeholder="Jane Doe"
+                placeholder="Іван Петренко"
               />
             </div>
 
@@ -166,7 +216,7 @@ export function AddCandidateModal({
                 value={form.email}
                 onChange={(event) => updateField("email", event.target.value)}
                 className={inputClassName}
-                placeholder="jane@example.com"
+                placeholder="ivan@example.com"
               />
             </div>
 
@@ -194,7 +244,7 @@ export function AddCandidateModal({
                 value={form.resumeLink}
                 onChange={(event) => updateField("resumeLink", event.target.value)}
                 className={inputClassName}
-                placeholder="https://linkedin.com/in/jane-doe"
+                placeholder="https://linkedin.com/in/ivan-petrenko"
               />
             </div>
 
@@ -239,7 +289,7 @@ export function AddCandidateModal({
                     Adding…
                   </>
                 ) : (
-                  "Add candidate"
+                  "Додати кандидата"
                 )}
               </Button>
             </div>

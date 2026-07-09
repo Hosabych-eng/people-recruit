@@ -43,6 +43,7 @@ type CandidateEmailsTabProps = {
   recruiterName: string;
   emails: CandidateEmailMessage[];
   onEmailSent: (email: CandidateEmailMessage) => void;
+  onInboundSynced?: () => void;
 };
 
 export function CandidateEmailsTab({
@@ -53,6 +54,7 @@ export function CandidateEmailsTab({
   recruiterName,
   emails,
   onEmailSent,
+  onInboundSynced,
 }: CandidateEmailsTabProps) {
   const [isComposing, setIsComposing] = useState(false);
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
@@ -68,6 +70,17 @@ export function CandidateEmailsTab({
     jobTitle,
     recruiterName,
   };
+
+  useEffect(() => {
+    void fetch("/api/gmail/sync", { method: "POST" })
+      .then((response) => response.json())
+      .then((payload) => {
+        if (payload.imported > 0) {
+          onInboundSynced?.();
+        }
+      })
+      .catch(() => undefined);
+  }, [candidateId, onInboundSynced]);
 
   useEffect(() => {
     if (!isComposing) return;
@@ -279,6 +292,12 @@ export function CandidateEmailsTab({
                         >
                           {STATUS_LABELS[message.status]}
                         </span>
+                        {isOutbound && message.status === "SENT" && (
+                          <span className="text-xs text-muted" title="Статус прочитання">
+                            {message.isRead ? "✓✓" : "✓"}
+                            {message.isClicked ? " 🔗" : ""}
+                          </span>
+                        )}
                       </div>
                       <h3 className="mt-2 text-base font-semibold text-foreground">
                         {message.subject}
@@ -309,6 +328,14 @@ export function CandidateEmailsTab({
                         <span className="block text-muted">{message.recipientEmail}</span>
                       </dd>
                     </div>
+                    {message.ccEmails && (
+                      <div className="sm:col-span-2">
+                        <dt className="text-xs font-medium uppercase tracking-wide text-muted">
+                          CC
+                        </dt>
+                        <dd className="mt-1 text-foreground">{message.ccEmails}</dd>
+                      </div>
+                    )}
                   </dl>
 
                   <div className="mt-4 rounded-lg border border-border bg-background px-4 py-3">

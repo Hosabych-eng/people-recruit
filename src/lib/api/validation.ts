@@ -50,6 +50,7 @@ export function parseUpdateJobBody(body: Record<string, unknown>) {
     title?: string;
     description?: string;
     status?: JobStatus;
+    recruiterId?: string | null;
   } = {};
 
   if ("title" in body) updates.title = requireString(body.title, "title");
@@ -57,6 +58,10 @@ export function parseUpdateJobBody(body: Record<string, unknown>) {
     updates.description = requireString(body.description, "description");
   }
   if ("status" in body) updates.status = requireJobStatus(body.status);
+  if ("recruiterId" in body) {
+    updates.recruiterId =
+      body.recruiterId === null ? null : optionalString(body.recruiterId) ?? null;
+  }
 
   if (Object.keys(updates).length === 0) {
     throw new ApiError(400, "At least one field must be provided for update");
@@ -86,6 +91,7 @@ const APPLICATION_SOURCES = new Set([
   "SNOOPGAME",
   "MANUAL",
   "CAREER_SITE",
+  "CAREERS",
 ]);
 
 function parseApplicationSource(value: unknown) {
@@ -100,7 +106,8 @@ function parseApplicationSource(value: unknown) {
     | "ROBOTA_UA"
     | "SNOOPGAME"
     | "MANUAL"
-    | "CAREER_SITE";
+    | "CAREER_SITE"
+    | "CAREERS";
 }
 
 export function parseImportCandidateBody(body: Record<string, unknown>) {
@@ -112,6 +119,7 @@ export function parseImportCandidateBody(body: Record<string, unknown>) {
     email: optionalString(body.email),
     phone: optionalString(body.phone),
     resumeLink: optionalString(body.resumeLink),
+    avatarUrl: optionalString(body.avatarUrl),
     applicationSource: parseApplicationSource(body.applicationSource),
   };
 }
@@ -119,17 +127,29 @@ export function parseImportCandidateBody(body: Record<string, unknown>) {
 export function parseUpdateCandidateBody(body: Record<string, unknown>) {
   const updates: {
     name?: string;
-    email?: string;
+    email?: string | null;
     phone?: string | null;
     resumeLink?: string | null;
     expectedSalary?: number | null;
     salaryCurrency?: string | null;
     stageId?: string;
     isNew?: boolean;
+    score?: number | null;
+    englishLevel?: string | null;
+    chineseLevel?: string | null;
+    position?: string | null;
+    coverLetter?: string | null;
+    rejectionReasonId?: string | null;
+    rejectionNote?: string | null;
   } = {};
 
   if ("name" in body) updates.name = requireString(body.name, "name");
-  if ("email" in body) updates.email = requireString(body.email, "email");
+  if ("email" in body) {
+    updates.email =
+      body.email === null || body.email === ""
+        ? null
+        : requireString(body.email, "email");
+  }
   if ("phone" in body) {
     updates.phone = body.phone === null ? null : optionalString(body.phone) ?? null;
   }
@@ -155,7 +175,40 @@ export function parseUpdateCandidateBody(body: Record<string, unknown>) {
     }
     updates.isNew = body.isNew;
   }
+  if ("score" in body) {
+    const score = body.score === null ? null : Number(body.score);
+    if (score !== null && (!Number.isInteger(score) || score < 0 || score > 5)) {
+      throw new ApiError(400, "score must be between 0 and 5");
+    }
+    updates.score = score;
+  }
   if ("stageId" in body) updates.stageId = requireString(body.stageId, "stageId");
+  if ("position" in body) {
+    updates.position =
+      body.position === null ? null : optionalString(body.position) ?? null;
+  }
+  if ("englishLevel" in body) {
+    updates.englishLevel =
+      body.englishLevel === null ? null : optionalString(body.englishLevel) ?? null;
+  }
+  if ("chineseLevel" in body) {
+    updates.chineseLevel =
+      body.chineseLevel === null ? null : optionalString(body.chineseLevel) ?? null;
+  }
+  if ("coverLetter" in body) {
+    updates.coverLetter =
+      body.coverLetter === null ? null : optionalString(body.coverLetter) ?? null;
+  }
+  if ("rejectionReasonId" in body) {
+    updates.rejectionReasonId =
+      body.rejectionReasonId === null
+        ? null
+        : requireString(body.rejectionReasonId, "rejectionReasonId");
+  }
+  if ("rejectionNote" in body) {
+    updates.rejectionNote =
+      body.rejectionNote === null ? null : optionalString(body.rejectionNote) ?? null;
+  }
 
   if (Object.keys(updates).length === 0) {
     throw new ApiError(400, "At least one field must be provided for update");
@@ -314,5 +367,33 @@ export function parseSendCandidateEmailBody(body: Record<string, unknown>) {
   return {
     subject: requireString(body.subject, "subject"),
     body: requireString(body.body, "body"),
+    cc: parseCcEmails(body.cc),
   };
+}
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export function parseCcEmails(value: unknown): string[] {
+  if (value === undefined || value === null || value === "") return [];
+
+  const raw =
+    typeof value === "string"
+      ? value.split(/[,;]+/)
+      : Array.isArray(value)
+        ? value.map((item) => String(item))
+        : null;
+
+  if (!raw) {
+    throw new ApiError(400, "cc must be a comma-separated string or array of emails");
+  }
+
+  const emails = [...new Set(raw.map((item) => item.trim()).filter(Boolean))];
+
+  for (const email of emails) {
+    if (!EMAIL_PATTERN.test(email)) {
+      throw new ApiError(400, `Invalid CC email: ${email}`);
+    }
+  }
+
+  return emails;
 }

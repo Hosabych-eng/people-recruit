@@ -53,6 +53,7 @@ export async function POST(request: Request, context: RouteContext) {
         stageId: firstStage.id,
         applicationSource: "CAREER_SITE",
         isNew: true,
+        recruiterId: job.recruiterId,
       },
     });
 

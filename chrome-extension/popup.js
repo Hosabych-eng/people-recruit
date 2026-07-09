@@ -1,4 +1,4 @@
-const CRM_BASE_URL = "http://localhost:3000";
+const CRM_BASE_URL = "https://people-recruit.vercel.app";
 
 const jobSelect = document.getElementById("job-select");
 const nameInput = document.getElementById("name-input");
@@ -58,6 +58,9 @@ function setPreview(scraped) {
     scraped.email ? `<strong>Email:</strong> ${escapeHtml(scraped.email)}` : null,
     scraped.resumeLink
       ? `<strong>Profile:</strong> ${escapeHtml(scraped.resumeLink)}`
+      : null,
+    scraped.avatarUrl
+      ? `<strong>Photo:</strong> знайдено`
       : null,
     scraped.source ? `<strong>Source:</strong> ${escapeHtml(scraped.source)}` : null,
   ].filter(Boolean);
@@ -178,7 +181,6 @@ function buildRawInput(scraped, name, email) {
  */
 function scrapeCandidateFromPage() {
   const EMAIL_PATTERN = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
-  const PHONE_PATTERN = /(?:\+?\d[\d\s().-]{7,}\d)/;
 
   function cleanText(value) {
     return (value ?? "").replace(/\s+/g, " ").trim();
@@ -195,10 +197,188 @@ function scrapeCandidateFromPage() {
     return match ? match[0].toLowerCase() : undefined;
   }
 
+  function isLikelyDateString(value) {
+    const text = cleanText(value);
+    if (!text) return false;
+    if (/^\d{1,2}[./-]\d{1,2}[./-]\d{2,4}$/.test(text)) return true;
+    if (/^\d{4}[./-]\d{1,2}[./-]\d{1,2}$/.test(text)) return true;
+    if (/^\d{1,2}[./-][A-Za-z]{3}[./-]\d{2,4}$/i.test(text)) return true;
+    if (/^[A-Za-z]{3,9}\s+\d{4}$/i.test(text)) return true;
+    return false;
+  }
+
+  function digitCount(value) {
+    return (value.match(/\d/g) ?? []).length;
+  }
+
+  function isValidPhone(value) {
+    const text = cleanText(value);
+    if (!text || text.length < 7 || text.length > 32) return false;
+    if (isLikelyDateString(text)) return false;
+
+    const digits = digitCount(text);
+    if (digits < 7 || digits > 15) return false;
+
+    // Dot-separated groups with no + or () are usually dates or IDs, not phones.
+    if (/^\d{1,4}(\.\d{1,4}){1,3}$/.test(text) && !/[+()]/.test(text)) {
+      return false;
+    }
+
+    if (/^\+[\d\s().-]{6,}$/.test(text)) return true;
+    if (/\(\d{2,5}\)/.test(text) && digits >= 7) return true;
+    if (/[\d\s().-]*\d{3}[\s.-]\d{2,4}[\s.-]?\d{2,4}/.test(text) && digits >= 9) {
+      return true;
+    }
+
+    return digits >= 10;
+  }
+
+  function normalizePhone(value) {
+    return cleanText(value).replace(/^tel:/i, "").split("?")[0].trim();
+  }
+
   function findPhone() {
-    const bodyText = document.body?.innerText ?? "";
-    const match = bodyText.match(PHONE_PATTERN);
-    return match ? cleanText(match[0]) : undefined;
+    const telLinks = document.querySelectorAll('a[href^="tel:"]');
+    for (const link of telLinks) {
+      const raw = link.getAttribute("href")?.replace(/^tel:/i, "") ?? "";
+      const phone = normalizePhone(raw);
+      if (isValidPhone(phone)) return phone;
+    }
+
+    const contactSelectors = [
+      ".pv-contact-info__contact-item a[href^='tel:']",
+      "section.pv-contact-info a[href^='tel:']",
+      "#top-card-text-details-contact-info a[href^='tel:']",
+      ".pv-top-card--list-bullet a[href^='tel:']",
+      ".contact-info__phone",
+      ".pv-contact-info__ci-container span.t-14",
+      "[data-test-icon='phone-handset-medium'] ~ span",
+      "[data-test-icon='phone-handset-medium'] + span",
+    ];
+
+    for (const selector of contactSelectors) {
+      const elements = document.querySelectorAll(selector);
+      for (const element of elements) {
+        const href = element.getAttribute?.("href");
+        const text = href?.startsWith("tel:")
+          ? normalizePhone(href)
+          : cleanText(element.textContent);
+        if (isValidPhone(text)) return normalizePhone(text);
+      }
+    }
+
+    const searchRoots = [
+      document.querySelector(".pv-contact-info"),
+      document.querySelector("#top-card-text-details-contact-info"),
+      document.querySelector(".pv-top-card"),
+      document.querySelector("main section:first-of-type"),
+    ].filter(Boolean);
+
+    const phonePattern =
+      /\+?\d[\d\s().-]{6,}\d/g;
+
+    for (const root of searchRoots) {
+      const text = root?.textContent ?? "";
+      const matches = text.match(phonePattern) ?? [];
+      for (const match of matches) {
+        const phone = normalizePhone(match);
+        if (isValidPhone(phone)) return phone;
+      }
+    }
+
+    return undefined;
+  }
+
+  function isUsableImageUrl(src) {
+    if (!src || typeof src !== "string") return false;
+    const trimmed = src.trim();
+    if (!trimmed.startsWith("http")) return false;
+    if (trimmed.startsWith("blob:") || trimmed.startsWith("data:")) return false;
+    if (/ghost|placeholder|default-profile|static\.licdn\.com\/aero-v1\/images\/ghost/i.test(trimmed)) {
+      return false;
+    }
+    return true;
+  }
+
+  function extractImageUrl(img) {
+    if (!img) return undefined;
+
+    const candidates = [];
+
+    const directSrc = img.getAttribute("src");
+    if (directSrc) candidates.push(directSrc);
+
+    if (img.currentSrc) candidates.push(img.currentSrc);
+
+    const delayed = img.getAttribute("data-delayed-url");
+    if (delayed) candidates.push(delayed);
+
+    const ghost = img.getAttribute("data-ghost-url");
+    if (ghost) candidates.push(ghost);
+
+    const srcset = img.getAttribute("srcset");
+    if (srcset) {
+      const parts = srcset
+        .split(",")
+        .map((part) => part.trim().split(/\s+/)[0])
+        .filter(Boolean);
+      candidates.push(...parts.reverse());
+    }
+
+    for (const candidate of candidates) {
+      if (!isUsableImageUrl(candidate)) continue;
+      try {
+        const url = new URL(candidate);
+        url.hash = "";
+        return url.toString();
+      } catch {
+        return candidate.split("#")[0];
+      }
+    }
+
+    return undefined;
+  }
+
+  function findProfileImage() {
+    const selectors = [
+      "img.pv-top-card-profile-picture__image",
+      "button.pv-top-card-profile-picture__image-button img",
+      "img.pv-top-card-profile-picture__image--show",
+      ".pv-top-card-profile-picture__image img",
+      ".pv-top-card-profile-picture img",
+      "button.pv-top-card-profile-picture img",
+      'img[class*="EntityPhoto-profile"]',
+      'img[class*="profile-photo"]',
+      'img[class*="profile-picture"]',
+      'img[alt*="profile photo" i]',
+      ".profile-photo-edit__preview",
+      "img[data-test-profile-photo]",
+      ".presence-entity__image",
+      "img.main-avatar",
+      'img[src*="profile-displayphoto"]',
+      'img[src*="media.licdn.com"]',
+    ];
+
+    for (const selector of selectors) {
+      const elements = document.querySelectorAll(selector);
+      for (const element of elements) {
+        const url = extractImageUrl(element);
+        if (url) return url;
+      }
+    }
+
+    const topCard = document.querySelector(".pv-top-card, main section:first-of-type, main");
+    if (topCard) {
+      const images = topCard.querySelectorAll("img");
+      for (const img of images) {
+        const url = extractImageUrl(img);
+        if (url && /profile-displayphoto|media\.licdn\.com/i.test(url)) {
+          return url;
+        }
+      }
+    }
+
+    return undefined;
   }
 
   function pickText(selectors) {
@@ -273,7 +453,7 @@ function scrapeCandidateFromPage() {
     }
   }
 
-  const host = window.location.hostname;
+  function pickText(selectors) {
   const resumeLink = normalizeProfileUrl(window.location.href.split("?")[0]);
 
   if (host.includes("linkedin.com")) {
@@ -304,6 +484,7 @@ function scrapeCandidateFromPage() {
       email: findEmail(),
       phone: findPhone(),
       resumeLink,
+      avatarUrl: findProfileImage(),
       summary: headline,
     };
   }
@@ -436,6 +617,7 @@ async function handleImport() {
       email,
       phone: scraped.phone,
       resumeLink: scraped.resumeLink,
+      avatarUrl: scraped.avatarUrl,
       applicationSource: scraped.source,
       rawInput: buildRawInput(scraped, name, email),
     };

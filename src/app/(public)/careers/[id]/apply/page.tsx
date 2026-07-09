@@ -17,7 +17,7 @@ export default async function JobApplyPage({ params }: JobApplyPageProps) {
       <JobPostingBreadcrumb title={job.title} />
 
       <main className="mx-auto w-full max-w-xl px-4 py-8 sm:px-6">
-        <JobApplyForm jobId={job.id} />
+        <JobApplyForm jobId={job.id} jobTitle={job.title} />
       </main>
     </div>
   );

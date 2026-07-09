@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PeopleRecruit | HR Workspace",
-  description: "Recruiting pipeline and workforce insights",
+  title: "PeopleRecruit | HR-робочий простір",
+  description: "Воронка найму та аналітика персоналу",
 };
 
 export default function RootLayout({
@@ -24,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="uk">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

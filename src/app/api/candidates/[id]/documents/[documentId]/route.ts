@@ -10,9 +10,9 @@ type RouteContext = {
 
 export async function GET(_request: Request, context: RouteContext) {
   try {
-    await requireSessionUser();
+    const session = await requireSessionUser();
     const { id, documentId } = await context.params;
-    await getCandidateOrThrow(id);
+    await getCandidateOrThrow(id, session);
 
     const document = await prisma.candidateDocument.findFirst({
       where: { id: documentId, candidateId: id },
@@ -42,9 +42,9 @@ export async function GET(_request: Request, context: RouteContext) {
 
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
-    await requireSessionUser();
+    const session = await requireSessionUser();
     const { id, documentId } = await context.params;
-    await getCandidateOrThrow(id);
+    await getCandidateOrThrow(id, session);
 
     const document = await prisma.candidateDocument.findFirst({
       where: { id: documentId, candidateId: id },

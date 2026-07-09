@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import { getJobOrThrow } from "@/lib/api/helpers";
-import { requireStaffUser } from "@/lib/auth/server";
+import { requireAdminUser, requireSessionUser } from "@/lib/auth/server";
 import {
   ApiError,
   errorResponse,
@@ -15,8 +15,9 @@ type RouteContext = {
 
 export async function GET(_request: Request, context: RouteContext) {
   try {
+    const session = await requireSessionUser();
     const { id } = await context.params;
-    const job = await getJobOrThrow(id);
+    const job = await getJobOrThrow(id, session);
 
     const jobWithCounts = await prisma.job.findUnique({
       where: { id: job.id },
@@ -43,7 +44,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    await requireStaffUser();
+    await requireAdminUser();
     const { id } = await context.params;
     await getJobOrThrow(id);
 
@@ -69,7 +70,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
-    await requireStaffUser();
+    await requireAdminUser();
     const { id } = await context.params;
     await getJobOrThrow(id);
 

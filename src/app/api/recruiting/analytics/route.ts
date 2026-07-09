@@ -2,6 +2,8 @@ import prisma from "@/lib/prisma";
 import { ApiError, errorResponse, jsonResponse } from "@/lib/api/response";
 import { optionalQueryParam } from "@/lib/api/validation";
 import { buildRecruitingAnalytics } from "@/lib/recruiting-analytics";
+import { recruiterCandidateFilter } from "@/lib/auth/access";
+import { requireSessionUser } from "@/lib/auth/server";
 
 function parseDateParam(value: string | null, field: string): Date {
   if (!value) {
@@ -32,6 +34,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
+    const session = await requireSessionUser();
     const { searchParams } = new URL(request.url);
     const from = startOfDay(parseDateParam(searchParams.get("from"), "from"));
     const to = endOfDay(parseDateParam(searchParams.get("to"), "to"));
@@ -42,7 +45,10 @@ export async function GET(request: Request) {
     }
 
     const candidates = await prisma.candidate.findMany({
-      where: jobId ? { jobId } : undefined,
+      where: {
+        ...recruiterCandidateFilter(session),
+        ...(jobId ? { jobId } : {}),
+      },
       select: {
         id: true,
         name: true,

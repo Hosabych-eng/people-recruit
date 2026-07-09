@@ -8,11 +8,13 @@ import { knowledgeNavItem } from "@/lib/knowledge-nav";
 import { candidatesNavItem } from "@/lib/candidates-nav";
 import { testAssignmentsNavItem } from "@/lib/test-assignments-nav";
 
+const EXTENSION_DOWNLOAD_URL = "/people-recruit-linkedin-parser.zip";
+
 const baseNavItems = [
   {
     href: "/recruiting",
-    label: "Recruiting",
-    description: "Pipeline & candidates",
+    label: "Рекрутинг",
+    description: "Воронка та кандидати",
     icon: (
       <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
         <rect x="3" y="4" width="5" height="16" rx="1.5" />
@@ -25,8 +27,8 @@ const baseNavItems = [
   testAssignmentsNavItem,
   {
     href: "/analytics",
-    label: "Workforce insights",
-    description: "Period statistics",
+    label: "Аналітика кадрів",
+    description: "Статистика за період",
     icon: (
       <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
         <path d="M4 19V5" />
@@ -58,8 +60,8 @@ const pipelinesNavItem = {
 
 const adminNavItem = {
   href: "/admin",
-  label: "Team access",
-  description: "Add HR accounts",
+  label: "Доступ команди",
+  description: "Облікові записи HR",
   icon: (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
       <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -70,11 +72,23 @@ const adminNavItem = {
   ),
 };
 
+const settingsNavItem = {
+  href: "/settings",
+  label: "Налаштування",
+  description: "Довідники CRM",
+  icon: (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+    </svg>
+  ),
+};
+
 export function SidebarNav() {
   const pathname = usePathname();
   const { user, isAdmin, logout } = useAuth();
   const navItems = isAdmin
-    ? [...baseNavItems, pipelinesNavItem, adminNavItem]
+    ? [...baseNavItems, pipelinesNavItem, settingsNavItem, adminNavItem]
     : baseNavItems;
 
   return (
@@ -86,14 +100,14 @@ export function SidebarNav() {
           </div>
           <div>
             <p className="text-sm font-semibold text-white">PeopleRecruit</p>
-            <p className="text-xs text-sidebar-muted">HR workspace</p>
+            <p className="text-xs text-sidebar-muted">HR-робочий простір</p>
           </div>
         </div>
       </div>
 
       <nav className="flex gap-1 overflow-x-auto px-3 py-3 md:flex-1 md:flex-col md:space-y-1 md:overflow-visible md:py-4">
         <p className="hidden px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-sidebar-muted md:block">
-          Modules
+          Модулі
         </p>
         {navItems.map((item) => {
           const isActive =
@@ -123,6 +137,29 @@ export function SidebarNav() {
             </Link>
           );
         })}
+
+        <div className="hidden md:block">
+          <p className="px-3 pb-2 pt-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-sidebar-muted">
+            Інструменти
+          </p>
+          <a
+            href={EXTENSION_DOWNLOAD_URL}
+            download="people-recruit-linkedin-parser.zip"
+            className="flex items-start gap-3 rounded-xl px-3 py-3 text-sidebar-muted transition-colors hover:bg-sidebar-hover hover:text-white"
+          >
+            <span className="mt-0.5 shrink-0">
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M12 3v12" />
+                <path d="m7 10 5 5 5-5" />
+                <path d="M5 21h14" />
+              </svg>
+            </span>
+            <span>
+              <span className="block text-sm font-medium">Завантажити парсер LinkedIn</span>
+              <span className="mt-0.5 block text-xs">Розширення для Chrome</span>
+            </span>
+          </a>
+        </div>
       </nav>
 
       <div className="border-t border-sidebar-border px-4 py-3 md:px-5 md:py-4">
@@ -130,7 +167,7 @@ export function SidebarNav() {
           <div className="mb-3 hidden md:mb-4 md:block">
             <p className="text-sm font-medium text-white">{user.name}</p>
             <p className="text-xs text-sidebar-muted">
-              {user.role === "ADMIN" ? "Administrator" : "Recruiter"}
+              {user.role === "ADMIN" ? "Адміністратор" : "Рекрутер"}
             </p>
           </div>
         )}
@@ -141,7 +178,7 @@ export function SidebarNav() {
           className="w-full border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-hover hover:text-white md:w-full"
           onClick={() => logout()}
         >
-          Sign out
+          Вийти
         </Button>
       </div>
     </aside>

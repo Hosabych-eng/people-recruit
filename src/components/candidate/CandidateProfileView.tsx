@@ -2,15 +2,17 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CandidateProfile } from "@/types";
 import { CandidateEmailsTab } from "@/components/candidate/CandidateEmailsTab";
+import { CandidateOffersTab } from "@/components/candidate/CandidateOffersTab";
 import { CandidateDocumentsTab } from "@/components/candidate/CandidateDocumentsTab";
 import { CandidateTestAssignmentsTab } from "@/components/candidate/CandidateTestAssignmentsTab";
-import { CandidateNotesSidebar } from "@/components/candidate/CandidateNotesSidebar";
+import { CandidateHomeTab } from "@/components/candidate/CandidateHomeTab";
+import { CandidateHistoryTab } from "@/components/candidate/CandidateHistoryTab";
 import { InterviewsTab } from "@/components/candidate/InterviewsTab";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { getInitials } from "@/lib/avatar-colors";
+import { CandidateAvatar } from "@/components/ui/CandidateAvatar";
 import { PROFILE_TABS, type CandidateProfileTab } from "@/lib/candidate-profile";
 import { CandidateProfileDetails } from "@/components/candidate/CandidateProfileDetails";
 import { EditCandidateModal } from "@/components/candidate/EditCandidateModal";
@@ -24,10 +26,13 @@ type CandidateProfileViewProps = {
 };
 
 const ENABLED_TABS = new Set<CandidateProfileTab>([
+  "home",
+  "offers",
   "interviews",
   "emails",
   "test-assignments",
   "documents",
+  "history",
 ]);
 
 function formatAddedDate(value: string) {
@@ -42,9 +47,44 @@ export function CandidateProfileView({ profile: initialProfile }: CandidateProfi
   const router = useRouter();
   const { user } = useAuth();
   const [profile, setProfile] = useState(initialProfile);
-  const [activeTab, setActiveTab] = useState<CandidateProfileTab>("interviews");
+  const [activeTab, setActiveTab] = useState<CandidateProfileTab>("home");
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [neighbors, setNeighbors] = useState<{
+    prevId: string | null;
+    nextId: string | null;
+    position: number | null;
+    total: number;
+  } | null>(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    void api.candidates.neighbors(profile.id).then(setNeighbors).catch(() => setNeighbors(null));
+  }, [profile.id]);
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [isMenuOpen]);
+
+  const handleDeleteCandidate = async () => {
+    if (!window.confirm(`Видалити кандидата ${profile.name}?`)) return;
+    try {
+      await api.candidates.delete(profile.id);
+      router.push("/recruiting");
+    } catch (err) {
+      setToastMessage(err instanceof Error ? err.message : "Не вдалося видалити кандидата");
+    }
+  };
 
   const recruiterName = user?.name ?? "Recruiter";
   const recruiterEmail =
@@ -84,12 +124,15 @@ export function CandidateProfileView({ profile: initialProfile }: CandidateProfi
 
   return (
     <div className="flex min-h-full flex-col bg-background">
-      <header className="border-b border-border bg-card px-6 py-5">
+      <header className="border-b border-border bg-card px-4 py-3">
         <div className="flex items-start justify-between gap-4">
           <div className="flex min-w-0 items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-lg font-semibold text-white">
-              {getInitials(profile.name)}
-            </div>
+            <CandidateAvatar
+              name={profile.name}
+              avatarUrl={profile.avatarUrl}
+              seed={profile.id}
+              size="md"
+            />
             <div className="min-w-0">
               <h1 className="text-2xl font-bold tracking-tight text-foreground">
                 {profile.name}
@@ -105,24 +148,56 @@ export function CandidateProfileView({ profile: initialProfile }: CandidateProfi
             <button
               type="button"
               aria-label="Попередній кандидат"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted hover:bg-slate-50"
+              disabled={!neighbors?.prevId}
+              onClick={() => neighbors?.prevId && router.push(`/candidates/${neighbors.prevId}`)}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
             >
               ‹
             </button>
             <button
               type="button"
               aria-label="Наступний кандидат"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted hover:bg-slate-50"
+              disabled={!neighbors?.nextId}
+              onClick={() => neighbors?.nextId && router.push(`/candidates/${neighbors.nextId}`)}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
             >
               ›
             </button>
-            <button
-              type="button"
-              aria-label="Меню"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted hover:bg-slate-50"
-            >
-              ···
-            </button>
+            <div className="relative" ref={menuRef}>
+              <button
+                type="button"
+                aria-label="Меню"
+                aria-expanded={isMenuOpen}
+                onClick={() => setIsMenuOpen((open) => !open)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted hover:bg-slate-50"
+              >
+                ···
+              </button>
+              {isMenuOpen && (
+                <div className="absolute right-0 z-20 mt-1 w-44 rounded-lg border border-border bg-card py-1 shadow-lg">
+                  <button
+                    type="button"
+                    className="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      setIsEditOpen(true);
+                    }}
+                  >
+                    Редагувати профіль
+                  </button>
+                  <button
+                    type="button"
+                    className="block w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      void handleDeleteCandidate();
+                    }}
+                  >
+                    Видалити кандидата
+                  </button>
+                </div>
+              )}
+            </div>
             <button
               type="button"
               onClick={() => router.push("/recruiting")}
@@ -159,8 +234,30 @@ export function CandidateProfileView({ profile: initialProfile }: CandidateProfi
         </nav>
       </header>
 
-      <div className="mx-auto grid w-full max-w-[1400px] flex-1 gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="mx-auto grid w-full max-w-[1400px] flex-1 gap-4 px-4 py-4 lg:grid-cols-[minmax(0,1fr)_300px]">
         <section className="min-w-0">
+          {activeTab === "home" && (
+            <CandidateHomeTab
+              profile={profile}
+              onProfileChange={setProfile}
+              onNotesChange={(notes) => setProfile((current) => ({ ...current, notes }))}
+            />
+          )}
+          {activeTab === "offers" && (
+            <CandidateOffersTab
+              profile={profile}
+              onProfileChange={setProfile}
+              candidateId={profile.id}
+              candidateName={profile.name}
+              candidateEmail={profile.email}
+              jobTitle={profile.job.title}
+              recruiterName={recruiterName}
+              documents={profile.documents}
+              emails={profile.emails}
+              onDocumentsChange={handleDocumentsChange}
+              onEmailSent={handleEmailSent}
+            />
+          )}
           {activeTab === "interviews" && (
             <InterviewsTab
               candidateId={profile.id}
@@ -182,6 +279,10 @@ export function CandidateProfileView({ profile: initialProfile }: CandidateProfi
               recruiterName={recruiterName}
               emails={profile.emails}
               onEmailSent={handleEmailSent}
+              onInboundSynced={async () => {
+                const updated = await api.candidates.profile(profile.id);
+                setProfile(updated);
+              }}
             />
           )}
           {activeTab === "test-assignments" && (
@@ -199,6 +300,7 @@ export function CandidateProfileView({ profile: initialProfile }: CandidateProfi
               onDocumentsChange={handleDocumentsChange}
             />
           )}
+          {activeTab === "history" && <CandidateHistoryTab candidateId={profile.id} />}
           {!ENABLED_TABS.has(activeTab) && (
             <div className="rounded-xl border border-dashed border-border bg-card px-6 py-12 text-center">
               <p className="text-sm text-muted">
@@ -211,16 +313,14 @@ export function CandidateProfileView({ profile: initialProfile }: CandidateProfi
           )}
         </section>
 
-        <aside className="flex flex-col gap-6">
+        {activeTab !== "home" && (
+        <aside className="flex flex-col gap-4">
           <CandidateProfileDetails
             profile={profile}
             onEdit={() => setIsEditOpen(true)}
           />
-          <CandidateNotesSidebar
-            candidateId={profile.id}
-            initialNotes={profile.notes}
-          />
         </aside>
+        )}
       </div>
 
       <EditCandidateModal

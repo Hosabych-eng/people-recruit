@@ -1,9 +1,11 @@
+import "@/lib/auth-url";
 import type { NextAuthOptions } from "next-auth";
 import type { UserRole, UserStatus } from "@prisma/client";
 import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import prisma from "@/lib/prisma";
 import { assertAuthEnv, getAuthEnv } from "@/lib/auth-env";
+import { getAuthBaseUrl } from "@/lib/auth-url";
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
@@ -51,6 +53,8 @@ function buildAuthOptions(): NextAuthOptions {
     };
   }
 
+  // NextAuth v4: base URL is controlled via NEXTAUTH_URL (pinned in auth-url.ts on
+  // production). trustHost is Auth.js v5 only — not available in next-auth@4.
   return {
     adapter: PrismaAdapter(prisma),
     providers: [
@@ -219,10 +223,32 @@ function buildAuthOptions(): NextAuthOptions {
 
         return session;
       },
-      async redirect({ url, baseUrl }) {
-        if (url.startsWith("/")) return `${baseUrl}${url}`;
-        if (new URL(url).origin === baseUrl) return url;
-        return baseUrl;
+      async redirect({ url }) {
+        const canonicalBase = getAuthBaseUrl();
+
+        if (url.startsWith("/")) {
+          return `${canonicalBase}${url}`;
+        }
+
+        try {
+          const target = new URL(url);
+
+          if (process.env.NODE_ENV === "production") {
+            // Never follow Vercel preview / deployment-hash hosts in production.
+            const path = `${target.pathname}${target.search}${target.hash}`;
+            return path && path !== "/"
+              ? `${canonicalBase}${path}`
+              : `${canonicalBase}/recruiting`;
+          }
+
+          if (target.origin === canonicalBase) {
+            return url;
+          }
+        } catch {
+          // Invalid URL — fall through to safe default.
+        }
+
+        return `${canonicalBase}/recruiting`;
       },
     },
     events: {

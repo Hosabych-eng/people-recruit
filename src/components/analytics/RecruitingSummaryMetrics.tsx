@@ -7,11 +7,11 @@ const METRICS: {
   label: string;
   accent: string;
 }[] = [
-  { key: "activeCandidates", label: "Active candidates", accent: "border-t-sky-500" },
-  { key: "rejected", label: "Rejected", accent: "border-t-rose-500" },
-  { key: "interviews", label: "Interviews", accent: "border-t-violet-500" },
-  { key: "offersSent", label: "Offers sent", accent: "border-t-amber-500" },
-  { key: "offersAccepted", label: "Offers accepted", accent: "border-t-emerald-500" },
+  { key: "activeCandidates", label: "Активні кандидати", accent: "border-t-sky-500" },
+  { key: "rejected", label: "Відмови", accent: "border-t-rose-500" },
+  { key: "interviews", label: "Інтерв'ю", accent: "border-t-violet-500" },
+  { key: "offersSent", label: "Надіслані офери", accent: "border-t-amber-500" },
+  { key: "offersAccepted", label: "Прийняті офери", accent: "border-t-emerald-500" },
 ];
 
 type RecruitingSummaryMetricsProps = {

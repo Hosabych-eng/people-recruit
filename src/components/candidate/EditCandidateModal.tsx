@@ -84,7 +84,7 @@ export function EditCandidateModal({
 
     const payload = {
       name: form.name.trim(),
-      email: form.email.trim(),
+      email: form.email.trim() || null,
       phone: form.phone.trim() || null,
       resumeLink: form.resumeLink.trim() || null,
       stageId: form.stageId,
@@ -147,12 +147,11 @@ export function EditCandidateModal({
 
           <div className="space-y-2">
             <label htmlFor="edit-candidate-email" className={formLabelClassName}>
-              Email <span className="text-red-500">*</span>
+              Email
             </label>
             <input
               id="edit-candidate-email"
               type="email"
-              required
               value={form.email}
               onChange={(event) => updateField("email", event.target.value)}
               className={formControlClassName}

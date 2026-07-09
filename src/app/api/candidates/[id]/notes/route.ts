@@ -14,9 +14,9 @@ type RouteContext = {
 
 export async function GET(_request: Request, context: RouteContext) {
   try {
-    await requireSessionUser();
+    const session = await requireSessionUser();
     const { id } = await context.params;
-    await getCandidateOrThrow(id);
+    await getCandidateOrThrow(id, session);
 
     const notes = await prisma.candidateNote.findMany({
       where: { candidateId: id },
@@ -33,7 +33,7 @@ export async function POST(request: Request, context: RouteContext) {
   try {
     const session = await requireSessionUser();
     const { id } = await context.params;
-    await getCandidateOrThrow(id);
+    await getCandidateOrThrow(id, session);
 
     const body = await parseJsonBody<{ content?: unknown }>(request);
 

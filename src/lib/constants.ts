@@ -1,5 +1,5 @@
 export const DEFAULT_PIPELINE_STAGES = [
-  { name: "Applied", orderInPipeline: 0 },
+  { name: "New candidate", orderInPipeline: 0 },
   { name: "Screening", orderInPipeline: 1 },
   { name: "Interview", orderInPipeline: 2 },
   { name: "Offered", orderInPipeline: 3 },

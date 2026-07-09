@@ -20,21 +20,21 @@ const CHART_COLORS = {
 } as const;
 
 const SERIES = [
-  { key: "recruitingIn" as const, label: "New applications", color: CHART_COLORS.recruitingIn },
-  { key: "recruitingOut" as const, label: "Closed applications", color: CHART_COLORS.recruitingOut },
-  { key: "onboarding" as const, label: "Onboarded", color: CHART_COLORS.onboarding },
-  { key: "offboarding" as const, label: "Offboarded", color: CHART_COLORS.offboarding },
+  { key: "recruitingIn" as const, label: "Нові заявки", color: CHART_COLORS.recruitingIn },
+  { key: "recruitingOut" as const, label: "Закриті заявки", color: CHART_COLORS.recruitingOut },
+  { key: "onboarding" as const, label: "Онбординг", color: CHART_COLORS.onboarding },
+  { key: "offboarding" as const, label: "Офбординг", color: CHART_COLORS.offboarding },
 ];
 
 function formatAxisDate(value: string) {
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat("uk-UA", {
     month: "short",
     day: "numeric",
   }).format(new Date(value));
 }
 
 function formatTooltipDate(value: string) {
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat("uk-UA", {
     month: "short",
     day: "numeric",
     year: "numeric",

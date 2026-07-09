@@ -8,6 +8,7 @@ export const APPLICATION_SOURCES: ApplicationSource[] = [
   "SNOOPGAME",
   "MANUAL",
   "CAREER_SITE",
+  "CAREERS",
 ];
 
 export const SOURCE_META: Record<
@@ -21,6 +22,7 @@ export const SOURCE_META: Record<
   SNOOPGAME: { label: "snoopgame", color: "#8b5cf6" },
   MANUAL: { label: "Додано вручну", color: "#ec4899" },
   CAREER_SITE: { label: "Кар'єрний сайт", color: "#a78bfa" },
+  CAREERS: { label: "Careers", color: "#14b8a6" },
 };
 
 export function getSourceLabel(source: ApplicationSource) {

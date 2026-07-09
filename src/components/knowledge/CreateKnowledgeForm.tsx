@@ -31,7 +31,7 @@ export function CreateKnowledgeForm({ onCreated }: CreateKnowledgeFormProps) {
       setContent("");
       onCreated();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create article");
+      setError(err instanceof Error ? err.message : "Не вдалося створити статтю");
     } finally {
       setIsSubmitting(false);
     }
@@ -39,33 +39,33 @@ export function CreateKnowledgeForm({ onCreated }: CreateKnowledgeFormProps) {
 
   return (
     <section className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
-      <h2 className="text-base font-semibold text-foreground">Create new entry</h2>
+      <h2 className="text-base font-semibold text-foreground">Новий запис</h2>
       <p className="mt-1 text-sm text-muted">
-        Share policies, guides, and internal notes with the team.
+        Діліться політиками, інструкціями та внутрішніми нотатками з командою.
       </p>
 
       <form onSubmit={handleSubmit} className="mt-5 space-y-4">
         <label className="block space-y-2">
-          <span className={formLabelClassName}>Title</span>
+          <span className={formLabelClassName}>Заголовок</span>
           <input
             type="text"
             required
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             className={formControlClassName}
-            placeholder="Onboarding checklist"
+            placeholder="Чекліст онбордингу"
           />
         </label>
 
         <label className="block space-y-2">
-          <span className={formLabelClassName}>Content</span>
+          <span className={formLabelClassName}>Зміст</span>
           <textarea
             required
             rows={8}
             value={content}
             onChange={(event) => setContent(event.target.value)}
             className={`${formControlClassName} min-h-[160px] resize-y`}
-            placeholder="Write the article content here…"
+            placeholder="Напишіть текст статті…"
           />
         </label>
 
@@ -79,10 +79,10 @@ export function CreateKnowledgeForm({ onCreated }: CreateKnowledgeFormProps) {
           {isSubmitting ? (
             <>
               <Spinner className="mr-2 h-4 w-4" />
-              Publishing…
+              Публікація…
             </>
           ) : (
-            "Publish entry"
+            "Опублікувати"
           )}
         </Button>
       </form>

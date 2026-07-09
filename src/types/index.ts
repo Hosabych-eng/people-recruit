@@ -7,6 +7,7 @@ export type StageWithCount = Stage & {
 };
 
 export type JobWithCounts = Job & {
+  stages: { id: string; name: string }[];
   _count: { candidates: number; stages: number };
 };
 
@@ -26,10 +27,24 @@ export type UpdateStageInput = {
 };
 
 export type PipelineCandidate = Candidate & {
-  _count: { candidateNotes: number };
+  _count: { candidateNotes: number; documents?: number };
+  tags?: CandidateTag[];
+  skills?: string[];
   expectedSalary?: number | null;
   salaryCurrency?: string | null;
   isNew?: boolean;
+  avatarUrl?: string | null;
+  score?: number | null;
+  evaluationAverage?: number | null;
+  testAssignmentDeadline?: Date | string | null;
+  resumeText?: string | null;
+  rejectionReason?: RejectionReason | null;
+  lastNote?: { content: string; createdAt: Date | string } | null;
+};
+
+export type RejectionReason = {
+  id: string;
+  name: string;
 };
 
 export type StageWithCandidates = Stage & {
@@ -43,6 +58,8 @@ export type JobWithPipeline = Job & {
 export type CandidateWithRelations = Candidate & {
   stage: Stage;
   job: Job;
+  rejectionReason?: RejectionReason | null;
+  lastNote?: { content: string; createdAt: Date | string } | null;
 };
 
 export type CreateJobInput = {
@@ -68,14 +85,37 @@ export type CreateCandidateInput = {
 
 export type UpdateCandidateInput = Partial<{
   name: string;
-  email: string;
+  email: string | null;
   phone: string | null;
   resumeLink: string | null;
   expectedSalary: number | null;
   salaryCurrency: string | null;
   stageId: string;
   isNew: boolean;
+  score: number | null;
+  englishLevel: string | null;
+  chineseLevel: string | null;
+  position: string | null;
+  coverLetter: string | null;
+  rejectionReasonId: string | null;
+  rejectionNote: string | null;
 }>;
+
+export type CandidateTag = {
+  id: string;
+  name: string;
+  color: string;
+};
+
+export type CandidateApplication = {
+  id: string;
+  candidateId: string;
+  jobId: string;
+  stageId: string;
+  job: { id: string; title: string; status: string };
+  stage: { id: string; name: string };
+  createdAt: string;
+};
 
 export type CandidateNote = {
   id: string;
@@ -105,6 +145,7 @@ export type CandidateInterview = {
   type: "ONLINE" | "ONSITE" | "PHONE";
   durationMinutes: number;
   messageBody: string | null;
+  meetLink: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -126,10 +167,15 @@ export type CandidateEmailMessage = {
   senderEmail: string;
   recipientName: string;
   recipientEmail: string;
+  ccEmails: string | null;
   subject: string;
   body: string;
   sentAt: string;
   createdAt: string;
+  isRead: boolean;
+  isClicked: boolean;
+  openedAt: string | null;
+  clickedAt: string | null;
 };
 
 export type TestAssignmentTemplate = {
@@ -151,8 +197,11 @@ export type CandidateTestAssignment = {
   templateTitle: string;
   templateFileName: string;
   sentByName: string;
-  status: "QUEUED" | "SENT" | "FAILED";
+  status: "QUEUED" | "SENT" | "FAILED" | "SUBMITTED";
   gmailMessageId: string | null;
+  uploadExpiresAt?: string | null;
+  submittedAt?: string | null;
+  submissionNote?: string | null;
   sentAt: string | null;
   createdAt: string;
 };
@@ -160,7 +209,7 @@ export type CandidateTestAssignment = {
 export type CandidateDocument = {
   id: string;
   candidateId: string;
-  category: "RESUME" | "PORTFOLIO" | "OTHER";
+  category: "RESUME" | "PORTFOLIO" | "OFFER" | "OTHER";
   title: string;
   fileName: string;
   mimeType: string;
@@ -196,6 +245,7 @@ export type ImportCandidateInput = {
   email?: string;
   phone?: string;
   resumeLink?: string;
+  avatarUrl?: string;
   applicationSource?: string;
 };
 
@@ -219,6 +269,7 @@ export type UpdateEmailTemplateInput = Partial<CreateEmailTemplateInput>;
 export type SendCandidateEmailInput = {
   subject: string;
   body: string;
+  cc?: string | string[];
 };
 
 export type CandidateProfile = {
@@ -227,16 +278,41 @@ export type CandidateProfile = {
   email: string | null;
   phone: string | null;
   resumeLink: string | null;
+  avatarUrl: string | null;
+  position: string | null;
+  coverLetter: string | null;
+  englishLevel: string | null;
+  chineseLevel: string | null;
+  score: number | null;
   applicationSource: string;
   isNew: boolean;
   createdAt: string;
+  expectedSalary: number | null;
+  salaryCurrency: string | null;
   stage: { id: string; name: string };
   job: { id: string; title: string };
+  tags: CandidateTag[];
+  applications: CandidateApplication[];
   notes: CandidateNote[];
   interviews: CandidateInterview[];
   emails: CandidateEmailMessage[];
   testAssignments: CandidateTestAssignment[];
   documents: CandidateDocument[];
+  customFields: Record<string, string>;
+  skills?: string[];
+  evaluationAverage?: number | null;
+  experienceYears?: number | null;
+};
+
+export type CandidateFieldSchemaItem = {
+  id: string;
+  fieldKey: string;
+  label: string;
+  fieldType: "STANDARD" | "TEXT" | "DROPDOWN";
+  visible: boolean;
+  sortOrder: number;
+  options: string[];
+  isCustom: boolean;
 };
 
 export type AnalyticsSummary = {

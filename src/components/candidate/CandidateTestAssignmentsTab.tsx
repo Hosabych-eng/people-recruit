@@ -17,12 +17,14 @@ const STATUS_LABELS: Record<CandidateTestAssignment["status"], string> = {
   QUEUED: "У черзі",
   SENT: "Надіслано",
   FAILED: "Помилка",
+  SUBMITTED: "Надіслано кандидатом",
 };
 
 const STATUS_STYLES: Record<CandidateTestAssignment["status"], string> = {
   QUEUED: "bg-slate-100 text-slate-700",
   SENT: "bg-emerald-50 text-emerald-700",
   FAILED: "bg-red-50 text-red-700",
+  SUBMITTED: "bg-violet-50 text-violet-700",
 };
 
 export function CandidateTestAssignmentsTab({

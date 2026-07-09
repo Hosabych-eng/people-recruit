@@ -18,6 +18,10 @@ type KanbanColumnProps = {
   index: number;
   sortOrder: CandidateSortOrder;
   onSelectCandidate: (candidate: PipelineCandidate) => void;
+  focusedCandidateId?: string | null;
+  blindHiring?: boolean;
+  compareSelectedIds?: string[];
+  onToggleCompare?: (candidate: PipelineCandidate) => void;
 };
 
 export function KanbanColumn({
@@ -25,6 +29,10 @@ export function KanbanColumn({
   index,
   sortOrder,
   onSelectCandidate,
+  focusedCandidateId,
+  blindHiring = false,
+  compareSelectedIds = [],
+  onToggleCompare,
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: stageDndId(stage.id),
@@ -63,6 +71,10 @@ export function KanbanColumn({
               key={candidate.id}
               candidate={candidate}
               onSelect={onSelectCandidate}
+              isFocused={focusedCandidateId === candidate.id}
+              blindHiring={blindHiring}
+              compareSelected={compareSelectedIds.includes(candidate.id)}
+              onToggleCompare={onToggleCompare}
             />
           ))
         )}

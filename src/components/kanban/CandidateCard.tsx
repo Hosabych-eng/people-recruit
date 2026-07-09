@@ -3,81 +3,38 @@
 import type { PipelineCandidate } from "@/types";
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { getAvatarColors, getInitials } from "@/lib/avatar-colors";
-import { formatRelativeTimeUk } from "@/lib/format-relative-time";
+import { CandidateAvatar } from "@/components/ui/CandidateAvatar";
+import { getDaysActive } from "@/lib/days-active";
+import { maskCandidateName } from "@/lib/blind-hiring";
 import { candidateDndId } from "@/lib/pipeline-utils";
+
+const SKILL_COLORS = ["#6366f1", "#0ea5e9", "#10b981", "#f59e0b", "#8b5cf6"];
 
 type CandidateCardProps = {
   candidate: PipelineCandidate;
   onSelect: (candidate: PipelineCandidate) => void;
   isDragging?: boolean;
+  isFocused?: boolean;
+  blindHiring?: boolean;
+  compareSelected?: boolean;
+  onToggleCompare?: (candidate: PipelineCandidate) => void;
 };
 
 function formatSalary(candidate: PipelineCandidate) {
   if (candidate.expectedSalary == null) return null;
-
   const currency = candidate.salaryCurrency ?? "USD";
   const amount = candidate.expectedSalary.toLocaleString("uk-UA");
-
-  if (currency === "USD") {
-    return { display: `$${amount}`, badge: "USD" };
-  }
-
-  return { display: amount, badge: currency };
-}
-
-function CvIcon({ active }: { active: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className={`h-4 w-4 ${active ? "text-primary" : "text-muted/50"}`}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      aria-hidden
-    >
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
-      <path d="M14 2v6h6M10 13h4M10 17h4M8 13h.01M8 17h.01" />
-    </svg>
-  );
-}
-
-function CommentIcon({ count }: { count: number }) {
-  return (
-    <span
-      className={`inline-flex items-center gap-1 ${count > 0 ? "text-primary" : "text-muted/50"}`}
-      title={count > 0 ? `${count} коментар${count === 1 ? "" : count < 5 ? "і" : "ів"}` : "Немає коментарів"}
-    >
-      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-        <path d="M21 15a2 2 0 0 1-2 2H8l-5 3V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z" />
-      </svg>
-      {count > 0 && (
-        <span className="text-[11px] font-medium leading-none">{count}</span>
-      )}
-    </span>
-  );
-}
-
-function MailIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-4 w-4 text-muted/50"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      aria-hidden
-    >
-      <rect x="2" y="4" width="20" height="16" rx="2" />
-      <path d="m2 7 10 7 10-7" />
-    </svg>
-  );
+  return currency === "USD" ? `$${amount}` : `${amount} ${currency}`;
 }
 
 export function CandidateCard({
   candidate,
   onSelect,
   isDragging = false,
+  isFocused = false,
+  blindHiring = false,
+  compareSelected = false,
+  onToggleCompare,
 }: CandidateCardProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging: isActiveDrag } =
     useDraggable({
@@ -85,15 +42,18 @@ export function CandidateCard({
       data: { candidateId: candidate.id, type: "candidate" },
     });
 
-  const style = transform
-    ? { transform: CSS.Translate.toString(transform) }
-    : undefined;
-
+  const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined;
   const dragging = isDragging || isActiveDrag;
   const noteCount = candidate._count.candidateNotes;
-  const hasCv = Boolean(candidate.resumeLink);
-  const avatar = getAvatarColors(candidate.id);
+  const fileCount = candidate._count.documents ?? 0;
   const salary = formatSalary(candidate);
+  const daysAgo = getDaysActive(candidate.createdAt);
+  const displayName = blindHiring
+    ? maskCandidateName(candidate.name, candidate.id)
+    : candidate.name;
+  const isDeadlineExpired =
+    candidate.testAssignmentDeadline != null &&
+    new Date(candidate.testAssignmentDeadline).getTime() < Date.now();
 
   return (
     <div
@@ -104,97 +64,96 @@ export function CandidateCard({
       onClick={() => {
         if (!dragging) onSelect(candidate);
       }}
-      className={`group relative cursor-grab rounded-xl border border-border bg-card p-3 shadow-sm transition-all active:cursor-grabbing ${
-        dragging
-          ? "opacity-40 shadow-none"
-          : "hover:border-primary/30 hover:shadow-md"
-      }`}
+      className={`group relative cursor-grab rounded-md border bg-card p-1.5 text-[11px] shadow-sm transition-all active:cursor-grabbing ${
+        dragging ? "opacity-40" : "hover:border-primary/30"
+      } ${isFocused ? "border-primary ring-2 ring-primary/20" : "border-border"}`}
     >
-      {Boolean(candidate.isNew) && (
-        <span className="absolute -right-1 -top-1 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm">
-          Новий
-        </span>
-      )}
-
-      <div className="flex items-start gap-3">
-        <div
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${avatar.bg} ${avatar.text}`}
+      {onToggleCompare && (
+        <label
+          className="absolute right-1 top-1 z-10 flex items-center"
+          onClick={(event) => event.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
         >
-          {getInitials(candidate.name)}
-        </div>
-
+          <input
+            type="checkbox"
+            checked={compareSelected}
+            onChange={() => onToggleCompare(candidate)}
+            className="h-3 w-3 rounded border-border"
+          />
+        </label>
+      )}
+      <div className="flex items-start gap-1.5">
+        <CandidateAvatar
+          name={displayName}
+          avatarUrl={blindHiring ? null : candidate.avatarUrl}
+          seed={candidate.id}
+          size="sm"
+          className="!h-7 !w-7 !text-[10px]"
+        />
         <div className="min-w-0 flex-1">
-          <p className="truncate pr-6 text-sm font-medium text-foreground">
-            {candidate.name}
-          </p>
-          <p className="mt-0.5 text-xs text-muted">
-            {formatRelativeTimeUk(candidate.createdAt)}
-          </p>
+          <div className="flex items-center gap-1">
+            <p className="truncate font-medium leading-tight text-foreground">{displayName}</p>
+            {candidate.evaluationAverage != null && (
+              <span className="rounded bg-violet-100 px-1 py-0.5 text-[9px] font-semibold text-violet-800">
+                ★ {candidate.evaluationAverage.toFixed(1)}
+              </span>
+            )}
+            {candidate.score != null && (
+              <span className="rounded bg-amber-100 px-1 py-0.5 text-[9px] font-semibold text-amber-800">
+                {candidate.score}/5
+              </span>
+            )}
+          </div>
+          <div className="mt-0.5 flex flex-wrap items-center gap-1">
+            <span className="rounded bg-slate-100 px-1 py-0.5 text-[10px] text-muted">{daysAgo}д</span>
+            {salary && <span className="font-semibold text-foreground">{salary}</span>}
+            {isDeadlineExpired && (
+              <span className="rounded bg-red-100 px-1 py-0.5 text-[9px] font-semibold text-red-700">
+                Deadline expired
+              </span>
+            )}
+          </div>
+          {candidate.rejectionReason && (
+            <span className="mt-1 inline-block rounded bg-red-50 px-1 py-0.5 text-[9px] text-red-700">
+              {candidate.rejectionReason.name}
+            </span>
+          )}
+          {candidate.skills && candidate.skills.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-0.5">
+              {candidate.skills.slice(0, 3).map((skill, index) => (
+                <span
+                  key={skill}
+                  className="rounded px-1 py-0.5 text-[9px] text-white"
+                  style={{ background: SKILL_COLORS[index % SKILL_COLORS.length] }}
+                >
+                  {skill}
+                </span>
+              ))}
+            </div>
+          )}
+          {candidate.tags && candidate.tags.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-0.5">
+              {candidate.tags.slice(0, 2).map((tag) => (
+                <span
+                  key={tag.id}
+                  className="rounded px-1 py-0.5 text-[9px] text-white"
+                  style={{ background: tag.color }}
+                >
+                  {tag.name}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
-
-      {salary && (
-        <div className="mt-3 flex items-center gap-2">
-          <span className="text-sm font-semibold text-foreground">
-            {salary.display}
-          </span>
-          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted">
-            {salary.badge}
-          </span>
-        </div>
-      )}
-
-      <div className="mt-3 flex items-center justify-between border-t border-border/70 pt-2.5">
-        <div className="flex items-center gap-3">
-          <span title={hasCv ? "Резюме прикріплено" : "Резюме відсутнє"}>
-            <CvIcon active={hasCv} />
-          </span>
-          <CommentIcon count={noteCount} />
-        </div>
-        {candidate.email ? (
-          <a
-            href={`mailto:${candidate.email}`}
-            onClick={(event) => event.stopPropagation()}
-            onPointerDown={(event) => event.stopPropagation()}
-            className="rounded p-0.5 transition-colors hover:text-primary"
-            title={`Написати ${candidate.email}`}
-            aria-label={`Написати ${candidate.email}`}
-          >
-            <MailIcon />
-          </a>
-        ) : null}
+      <div className="mt-1 flex items-center justify-between border-t border-border/60 pt-1 text-muted">
+        <span title="Файли">📎 {fileCount}</span>
+        <span title="Коментарі">💬 {noteCount}</span>
       </div>
     </div>
   );
 }
 
 export function CandidateCardPreview({ candidate }: { candidate: PipelineCandidate }) {
-  const avatar = getAvatarColors(candidate.id);
-  const salary = formatSalary(candidate);
-
-  return (
-    <div className="w-[300px] rotate-1 cursor-grabbing rounded-xl border border-primary/30 bg-card p-3 shadow-xl ring-2 ring-primary/20">
-      <div className="flex items-start gap-3">
-        <div
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${avatar.bg} ${avatar.text}`}
-        >
-          {getInitials(candidate.name)}
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{candidate.name}</p>
-          <p className="text-xs text-muted">
-            {formatRelativeTimeUk(candidate.createdAt)}
-          </p>
-        </div>
-      </div>
-      {salary && (
-        <div className="mt-3 flex items-center gap-2">
-          <span className="text-sm font-semibold">{salary.display}</span>
-          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted">
-            {salary.badge}
-          </span>
-        </div>
-      )}
-    </div>
-  );
+  return <CandidateCard candidate={candidate} onSelect={() => undefined} isDragging />;
 }

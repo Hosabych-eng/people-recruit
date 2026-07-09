@@ -1,3 +1,5 @@
+import { getAuthBaseUrl } from "@/lib/auth-url";
+
 type AuthEnv = {
   nextAuthUrl: string;
   nextAuthSecret: string;
@@ -27,10 +29,7 @@ export function getAuthEnv(): AuthEnv | null {
   const googleClientSecret = readGoogleClientSecret();
   const nextAuthSecret =
     readRequired("NEXTAUTH_SECRET") ?? readRequired("AUTH_SECRET");
-  const nextAuthUrl =
-    readRequired("NEXTAUTH_URL") ??
-    readRequired("NEXT_PUBLIC_APP_URL") ??
-    "http://localhost:3000";
+  const nextAuthUrl = getAuthBaseUrl();
 
   if (!googleClientId || !googleClientSecret || !nextAuthSecret) {
     return null;
@@ -61,12 +60,14 @@ export function getAuthEnvIssues(): string[] {
     issues.push("NEXTAUTH_SECRET (or AUTH_SECRET) is missing in .env");
   }
 
-  const nextAuthUrl =
-    readRequired("NEXTAUTH_URL") ?? readRequired("NEXT_PUBLIC_APP_URL");
-  if (!nextAuthUrl) {
-    issues.push(
-      "NEXTAUTH_URL is not set — it must match the port of `npm run dev` (e.g. http://localhost:3000)",
-    );
+  if (process.env.NODE_ENV !== "production") {
+    const nextAuthUrl =
+      readRequired("NEXTAUTH_URL") ?? readRequired("NEXT_PUBLIC_APP_URL");
+    if (!nextAuthUrl) {
+      issues.push(
+        "NEXTAUTH_URL is not set — it must match the port of `npm run dev` (e.g. http://localhost:3000)",
+      );
+    }
   }
 
   return issues;

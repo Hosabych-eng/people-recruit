@@ -41,7 +41,7 @@ function formatInputDate(date: Date) {
 }
 
 function formatDisplayDate(value: string) {
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat("uk-UA", {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -68,13 +68,13 @@ function getPresetRange(preset: Exclude<PeriodPreset, "custom">) {
 function formatEventType(type: AnalyticsResponse["recentEvents"][number]["type"]) {
   switch (type) {
     case "RECRUITING_IN":
-      return "New application";
+      return "Нова заявка";
     case "RECRUITING_OUT":
-      return "Closed application";
+      return "Закрита заявка";
     case "ONBOARDING":
-      return "Onboarding";
+      return "Онбординг";
     case "OFFBOARDING":
-      return "Offboarding";
+      return "Офбординг";
   }
 }
 
@@ -96,7 +96,7 @@ export function AnalyticsView() {
       setData(response);
     } catch (err) {
       setData(null);
-      setError(err instanceof Error ? err.message : "Failed to load analytics");
+      setError(err instanceof Error ? err.message : "Не вдалося завантажити аналітику");
     } finally {
       setIsLoading(false);
     }
@@ -126,14 +126,14 @@ export function AnalyticsView() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-medium uppercase tracking-wider text-muted">
-              Workforce insights
+              Аналітика кадрів
             </p>
             <h1 className="text-xl font-semibold tracking-tight text-foreground">
-              People movement overview
+              Рух персоналу
             </h1>
             <p className="mt-1 max-w-2xl text-sm text-muted">
-              Track recruiting inflow and outflow, onboarding starts, and
-              offboarding activity for any selected period.
+              Відстежуйте надходження та вихід кандидатів, онбординг і офбординг
+              за обраний період.
             </p>
           </div>
 
@@ -150,7 +150,7 @@ export function AnalyticsView() {
               onClick={handleExport}
               disabled={!data || isLoading}
             >
-              Export to Excel
+              Експорт в Excel
             </Button>
           </div>
         </div>
@@ -166,7 +166,7 @@ export function AnalyticsView() {
                 variant={preset === item ? "primary" : "outline"}
                 onClick={() => handlePresetChange(item)}
               >
-                Last {item === "7d" ? "7 days" : item === "30d" ? "30 days" : "90 days"}
+                {item === "7d" ? "7 днів" : item === "30d" ? "30 днів" : "90 днів"}
               </Button>
             ))}
             <Button
@@ -174,14 +174,14 @@ export function AnalyticsView() {
               variant={preset === "custom" ? "primary" : "outline"}
               onClick={() => setPreset("custom")}
             >
-              Custom range
+              Власний період
             </Button>
           </div>
 
           {preset === "custom" && (
             <div className="flex flex-wrap items-end gap-3">
               <label className="space-y-1 text-sm">
-                <span className="text-muted">From</span>
+                <span className="text-muted">Від</span>
                 <input
                   type="date"
                   value={fromDate}
@@ -190,7 +190,7 @@ export function AnalyticsView() {
                 />
               </label>
               <label className="space-y-1 text-sm">
-                <span className="text-muted">To</span>
+                <span className="text-muted">До</span>
                 <input
                   type="date"
                   value={toDate}
@@ -210,7 +210,7 @@ export function AnalyticsView() {
               size="sm"
               onClick={() => loadAnalytics(fromDate, toDate)}
             >
-              Retry
+              Повторити
             </Button>
           </div>
         )}
@@ -219,7 +219,7 @@ export function AnalyticsView() {
           <div className="flex min-h-[360px] items-center justify-center">
             <div className="flex flex-col items-center gap-3 text-muted">
               <Spinner className="h-8 w-8" />
-              <p className="text-sm">Loading analytics…</p>
+              <p className="text-sm">Завантаження аналітики…</p>
             </div>
           </div>
         )}
@@ -255,14 +255,14 @@ export function AnalyticsView() {
                 <div className="mb-5 flex items-center justify-between gap-3">
                   <div>
                     <h2 className="text-base font-semibold text-foreground">
-                      Daily activity
+                      Щоденна активність
                     </h2>
                     <p className="text-sm text-muted">
-                      Daily trends across all movement categories
+                      Динаміка за категоріями руху персоналу
                     </p>
                   </div>
                   <span className="rounded-full bg-background px-3 py-1 text-xs font-medium text-muted ring-1 ring-border">
-                    {data.timeline.length} days with activity
+                    {data.timeline.length} днів з активністю
                   </span>
                 </div>
 
@@ -272,17 +272,17 @@ export function AnalyticsView() {
               <section className="flex min-h-[460px] flex-col rounded-xl border border-border bg-card p-5 shadow-sm">
                 <div className="shrink-0">
                   <h2 className="text-base font-semibold text-foreground">
-                    Recent events
+                    Останні події
                   </h2>
                   <p className="mt-1 text-sm text-muted">
-                    Latest people movement in the selected period
+                    Найновіші зміни за обраний період
                   </p>
                 </div>
 
                 <div className="mt-5 min-h-0 flex-1 overflow-y-auto pr-1">
                   {data.recentEvents.length === 0 ? (
                     <div className="flex h-full min-h-[320px] items-center justify-center rounded-lg border border-dashed border-border px-4 text-center text-sm text-muted">
-                      Nothing to show yet.
+                      Поки що немає даних.
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -297,7 +297,7 @@ export function AnalyticsView() {
                                 {event.personName}
                               </p>
                               <p className="mt-1 truncate text-xs text-muted">
-                                {event.jobTitle ?? "No role specified"}
+                                {event.jobTitle ?? "Посада не вказана"}
                               </p>
                             </div>
                             <span className="shrink-0 rounded-full bg-card px-2 py-1 text-[11px] font-medium text-muted ring-1 ring-border">
@@ -318,7 +318,7 @@ export function AnalyticsView() {
 
             <section className="mt-6 rounded-xl border border-border bg-card p-5 shadow-sm">
               <h2 className="text-base font-semibold text-foreground">
-                Category legend
+                Легенда категорій
               </h2>
               <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 {categories.map((category) => (

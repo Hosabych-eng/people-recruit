@@ -2,8 +2,8 @@
 
 export const knowledgeNavItem = {
   href: "/knowledge",
-  label: "Knowledge base",
-  description: "Team articles & guides",
+  label: "База знань",
+  description: "Статті та інструкції",
   icon: (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
       <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />

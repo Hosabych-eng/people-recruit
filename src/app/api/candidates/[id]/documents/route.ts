@@ -13,13 +13,13 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
-const CATEGORY_VALUES = new Set(["RESUME", "PORTFOLIO", "OTHER"]);
+const CATEGORY_VALUES = new Set(["RESUME", "PORTFOLIO", "OFFER", "OTHER"]);
 
 export async function GET(_request: Request, context: RouteContext) {
   try {
-    await requireSessionUser();
+    const session = await requireSessionUser();
     const { id } = await context.params;
-    await getCandidateOrThrow(id);
+    await getCandidateOrThrow(id, session);
 
     const documents = await prisma.candidateDocument.findMany({
       where: { candidateId: id },
@@ -36,7 +36,7 @@ export async function POST(request: Request, context: RouteContext) {
   try {
     const session = await requireSessionUser();
     const { id } = await context.params;
-    await getCandidateOrThrow(id);
+    await getCandidateOrThrow(id, session);
 
     const formData = await request.formData();
     const title = String(formData.get("title") ?? "").trim();
@@ -63,7 +63,7 @@ export async function POST(request: Request, context: RouteContext) {
     const document = await prisma.candidateDocument.create({
       data: {
         candidateId: id,
-        category: category as "RESUME" | "PORTFOLIO" | "OTHER",
+        category: category as "RESUME" | "PORTFOLIO" | "OFFER" | "OTHER",
         title,
         fileName: saved.fileName,
         filePath: saved.filePath,

@@ -3,6 +3,7 @@ import { getCandidateOrThrow } from "@/lib/api/helpers";
 import { ApiError, errorResponse, jsonResponse } from "@/lib/api/response";
 import { parseCreateInterviewBody } from "@/lib/api/validation";
 import { requireSessionUser } from "@/lib/auth/server";
+import { prepareTrackedHtml } from "@/lib/email-tracking";
 import { createInterviewCalendarEvent } from "@/lib/google/calendar";
 import { sendGmailMessage } from "@/lib/google/gmail";
 import { getAuthenticatedGoogleClient } from "@/lib/google/oauth";
@@ -25,6 +26,8 @@ function serializeInterview(interview: {
   type: "ONLINE" | "ONSITE" | "PHONE";
   durationMinutes: number;
   messageBody: string | null;
+  meetLink: string | null;
+  calendarEventId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }) {
@@ -37,6 +40,8 @@ function serializeInterview(interview: {
     type: interview.type,
     durationMinutes: interview.durationMinutes,
     messageBody: interview.messageBody,
+    meetLink: interview.meetLink,
+    calendarEventId: interview.calendarEventId,
     createdAt: interview.createdAt.toISOString(),
     updatedAt: interview.updatedAt.toISOString(),
   };
@@ -44,9 +49,9 @@ function serializeInterview(interview: {
 
 export async function GET(_request: Request, context: RouteContext) {
   try {
-    await requireSessionUser();
+    const session = await requireSessionUser();
     const { id } = await context.params;
-    await getCandidateOrThrow(id);
+    await getCandidateOrThrow(id, session);
 
     const interviews = await prisma.interview.findMany({
       where: { candidateId: id },
@@ -63,7 +68,7 @@ export async function POST(request: Request, context: RouteContext) {
   try {
     const session = await requireSessionUser();
     const { id } = await context.params;
-    const candidate = await getCandidateOrThrow(id);
+    const candidate = await getCandidateOrThrow(id, session);
 
     const candidateEmail = candidate.email?.trim();
     if (!candidateEmail) {
@@ -80,6 +85,50 @@ export async function POST(request: Request, context: RouteContext) {
 
     const googleAuth = await getAuthenticatedGoogleClient(session.id);
 
+    const interview = await prisma.interview.create({
+      data: {
+        candidateId: candidate.id,
+        title: body.title,
+        scheduledAt: body.scheduledAt,
+        type: body.type,
+        durationMinutes: body.durationMinutes,
+        status: "PENDING",
+      },
+    });
+
+    let calendarEventId: string | null = null;
+    let meetLink: string | null = null;
+
+    try {
+      const calendarDescription = [
+        `Кандидат: ${candidate.name}`,
+        `Вакансія: ${candidate.job.title}`,
+      ].join("\n");
+
+      const calendarResult = await createInterviewCalendarEvent({
+        auth: googleAuth,
+        summary: buildInterviewInvitationSubject({
+          candidateName: candidate.name,
+          jobTitle: candidate.job.title,
+          interviewTitle: body.title,
+          scheduledAt: body.scheduledAt,
+          durationMinutes: body.durationMinutes,
+          recruiterName: session.name,
+        }),
+        description: calendarDescription,
+        scheduledAt: body.scheduledAt,
+        durationMinutes: body.durationMinutes,
+        attendeeEmail: candidateEmail,
+        attendeeName: candidate.name,
+        requestId: `interview-${interview.id}`,
+      });
+
+      calendarEventId = calendarResult.eventId;
+      meetLink = calendarResult.meetLink;
+    } catch (calendarError) {
+      console.error("[calendar] interview event failed", calendarError);
+    }
+
     const templateInput = {
       candidateName: candidate.name,
       jobTitle: candidate.job.title,
@@ -87,104 +136,59 @@ export async function POST(request: Request, context: RouteContext) {
       scheduledAt: body.scheduledAt,
       durationMinutes: body.durationMinutes,
       recruiterName: session.name,
+      meetingLink: meetLink ?? undefined,
     };
 
     const subject = buildInterviewInvitationSubject(templateInput);
     const messageBody = buildInterviewInvitationBody(templateInput);
     const htmlBody = buildInterviewInvitationHtml(templateInput);
 
-    const { interview, emailMessage } = await prisma.$transaction(async (tx) => {
-      const interview = await tx.interview.create({
-        data: {
-          candidateId: candidate.id,
-          title: body.title,
-          scheduledAt: body.scheduledAt,
-          type: body.type,
-          durationMinutes: body.durationMinutes,
-          messageBody,
-          status: "PENDING",
-        },
-      });
-
-      const emailMessage = await tx.emailMessage.create({
-        data: {
-          candidateId: candidate.id,
-          interviewId: interview.id,
-          direction: "OUTBOUND",
-          status: "QUEUED",
-          senderName: session.name,
-          senderEmail: session.email,
-          recipientName: candidate.name,
-          recipientEmail: candidateEmail,
-          subject,
-          body: messageBody,
-        },
-      });
-
-      return { interview, emailMessage };
+    const emailMessage = await prisma.emailMessage.create({
+      data: {
+        candidateId: candidate.id,
+        interviewId: interview.id,
+        direction: "OUTBOUND",
+        status: "QUEUED",
+        senderName: session.name,
+        senderEmail: session.email,
+        recipientName: candidate.name,
+        recipientEmail: candidateEmail,
+        subject,
+        body: messageBody,
+      },
     });
+
+    const trackedHtml = prepareTrackedHtml(htmlBody, emailMessage.id);
 
     let deliveryStatus: "SENT" | "FAILED" = "FAILED";
     let providerId: string | null = null;
-    let calendarEventId: string | null = null;
-    let meetLink: string | null = null;
 
-    const calendarDescription = [
-      messageBody,
-      "",
-      `Кандидат: ${candidate.name}`,
-      `Вакансія: ${candidate.job.title}`,
-    ].join("\n");
-
-    const [gmailResult, calendarResult] = await Promise.allSettled([
-      sendGmailMessage({
+    try {
+      providerId = await sendGmailMessage({
         auth: googleAuth,
         from: session.email,
         fromName: session.name,
         to: candidateEmail,
         subject,
         text: messageBody,
-        html: htmlBody,
-      }),
-      createInterviewCalendarEvent({
-        auth: googleAuth,
-        summary: subject,
-        description: calendarDescription,
-        scheduledAt: body.scheduledAt,
-        durationMinutes: body.durationMinutes,
-        attendeeEmail: candidateEmail,
-        attendeeName: candidate.name,
-        requestId: `interview-${interview.id}`,
-      }),
-    ]);
-
-    if (gmailResult.status === "fulfilled" && gmailResult.value) {
-      deliveryStatus = "SENT";
-      providerId = gmailResult.value;
-    } else if (gmailResult.status === "rejected") {
-      console.error("[gmail] interview invitation failed", {
-        candidateId: candidate.id,
-        interviewId: interview.id,
-        emailMessageId: emailMessage.id,
-        to: candidateEmail,
-        error: gmailResult.reason,
+        html: trackedHtml,
       });
+      deliveryStatus = providerId ? "SENT" : "FAILED";
+    } catch (gmailError) {
+      console.error("[gmail] interview invitation failed", gmailError);
     }
 
-    if (calendarResult.status === "fulfilled") {
-      calendarEventId = calendarResult.value.eventId;
-      meetLink = calendarResult.value.meetLink;
-    } else {
-      console.error("[calendar] interview event failed", {
-        candidateId: candidate.id,
-        interviewId: interview.id,
-        to: candidateEmail,
-        error: calendarResult.reason,
+    const [savedInterview, savedEmail] = await prisma.$transaction(async (tx) => {
+      const savedInterview = await tx.interview.update({
+        where: { id: interview.id },
+        data: {
+          messageBody,
+          meetLink,
+          calendarEventId,
+        },
       });
-    }
 
-    await prisma.$transaction(async (tx) => {
-      await tx.emailMessage.update({
+      const savedEmail = await tx.emailMessage.update({
         where: { id: emailMessage.id },
         data: {
           status: deliveryStatus,
@@ -199,14 +203,16 @@ export async function POST(request: Request, context: RouteContext) {
           data: { emailsSent: { increment: 1 } },
         });
       }
+
+      return [savedInterview, savedEmail] as const;
     });
 
     return jsonResponse(
       {
-        ...serializeInterview(interview),
+        ...serializeInterview(savedInterview),
         emailDelivery: {
-          status: deliveryStatus,
-          providerId,
+          status: savedEmail.status,
+          providerId: savedEmail.providerId,
         },
         calendarDelivery: {
           status: calendarEventId ? "SENT" : "FAILED",

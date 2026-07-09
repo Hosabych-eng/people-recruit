@@ -17,6 +17,7 @@ import {
   getCandidateDuplicateHistory,
 } from "@/lib/candidates/duplicate-check";
 import { parseCandidateImportInput } from "@/lib/candidates/import-parser";
+import { syncCandidateApplication } from "@/lib/settings/defaults";
 import { logWorkforceEvent } from "@/lib/workforce-events";
 
 function mergeImportFields(
@@ -30,6 +31,7 @@ function mergeImportFields(
     email,
     phone: input.phone ?? parsed.phone,
     resumeLink: input.resumeLink ?? parsed.resumeLink,
+    avatarUrl: input.avatarUrl,
     applicationSource: (input.applicationSource ??
       parsed.applicationSource ??
       "MANUAL") as ApplicationSource,
@@ -38,7 +40,7 @@ function mergeImportFields(
 
 export async function POST(request: Request) {
   try {
-    await requireSessionUser();
+    const session = await requireSessionUser();
 
     const body = await parseJsonBody<Record<string, unknown>>(request);
     const input = parseImportCandidateBody(body);
@@ -54,6 +56,7 @@ export async function POST(request: Request) {
 
     const duplicate = await findDuplicateCandidate({
       email: merged.email,
+      phone: merged.phone,
       resumeLink: merged.resumeLink,
     });
 
@@ -77,7 +80,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const job = await getJobOrThrow(input.jobId);
+    const job = await getJobOrThrow(input.jobId, session);
     await validateStageBelongsToJob(input.stageId, input.jobId);
 
     const candidate = await prisma.candidate.create({
@@ -86,13 +89,11 @@ export async function POST(request: Request) {
         email: merged.email ?? null,
         phone: merged.phone,
         resumeLink: merged.resumeLink,
+        avatarUrl: merged.avatarUrl ?? null,
         applicationSource: merged.applicationSource,
-        job: {
-          connect: { id: input.jobId },
-        },
-        stage: {
-          connect: { id: input.stageId },
-        },
+        recruiterId: session.id,
+        jobId: input.jobId,
+        stageId: input.stageId,
       },
       include: {
         stage: true,
@@ -101,6 +102,8 @@ export async function POST(request: Request) {
         },
       },
     });
+
+    await syncCandidateApplication(candidate.id, input.jobId, input.stageId);
 
     await logWorkforceEvent({
       type: "RECRUITING_IN",

@@ -12,16 +12,18 @@ import {
   getJobOrThrow,
   validateStageBelongsToJob,
 } from "@/lib/api/helpers";
+import { recruiterCandidateFilter } from "@/lib/auth/access";
 import { requireSessionUser } from "@/lib/auth/server";
 import {
   findDuplicateCandidate,
   getCandidateDuplicateHistory,
 } from "@/lib/candidates/duplicate-check";
 import { logWorkforceEvent } from "@/lib/workforce-events";
+import { syncCandidateApplication } from "@/lib/settings/defaults";
 
 export async function GET(request: Request) {
   try {
-    await requireSessionUser();
+    const session = await requireSessionUser();
 
     const { searchParams } = new URL(request.url);
     const jobId = optionalQueryParam(searchParams, "jobId");
@@ -29,6 +31,7 @@ export async function GET(request: Request) {
 
     const candidates = await prisma.candidate.findMany({
       where: {
+        ...recruiterCandidateFilter(session),
         ...(jobId ? { jobId } : {}),
         ...(query
           ? {
@@ -36,6 +39,8 @@ export async function GET(request: Request) {
                 { name: { contains: query, mode: "insensitive" } },
                 { email: { contains: query, mode: "insensitive" } },
                 { resumeLink: { contains: query, mode: "insensitive" } },
+                { resumeText: { contains: query, mode: "insensitive" } },
+                { skills: { has: query } },
               ],
             }
           : {}),
@@ -46,10 +51,21 @@ export async function GET(request: Request) {
         job: {
           select: { id: true, title: true, status: true },
         },
+        rejectionReason: true,
+        candidateNotes: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { content: true, createdAt: true },
+        },
       },
     });
 
-    return jsonResponse(candidates);
+    const serialized = candidates.map(({ candidateNotes, ...candidate }) => ({
+      ...candidate,
+      lastNote: candidateNotes[0] ?? null,
+    }));
+
+    return jsonResponse(serialized);
   } catch (error) {
     return errorResponse(error);
   }
@@ -57,13 +73,14 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    await requireSessionUser();
+    const session = await requireSessionUser();
 
     const body = await parseJsonBody<Record<string, unknown>>(request);
     const input = parseCreateCandidateBody(body);
 
     const duplicate = await findDuplicateCandidate({
       email: input.email,
+      phone: input.phone,
       resumeLink: input.resumeLink,
     });
 
@@ -76,7 +93,7 @@ export async function POST(request: Request) {
       });
     }
 
-    const job = await getJobOrThrow(input.jobId);
+    const job = await getJobOrThrow(input.jobId, session);
     await validateStageBelongsToJob(input.stageId, input.jobId);
 
     const candidate = await prisma.candidate.create({
@@ -89,6 +106,7 @@ export async function POST(request: Request) {
         salaryCurrency: input.salaryCurrency,
         jobId: input.jobId,
         stageId: input.stageId,
+        recruiterId: session.id,
       },
       include: {
         stage: true,
@@ -97,6 +115,8 @@ export async function POST(request: Request) {
         },
       },
     });
+
+    await syncCandidateApplication(candidate.id, input.jobId, input.stageId);
 
     await logWorkforceEvent({
       type: "RECRUITING_IN",

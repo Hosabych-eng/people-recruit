@@ -113,6 +113,7 @@ export type PipelineFilterOptions = {
   view: CandidateViewFilter;
   search: string;
   cardFilters: PipelineCardFilter[];
+  talentPoolTagId?: string;
 };
 
 function matchesCardFilters(
@@ -151,14 +152,34 @@ export function filterPipeline(
         candidates: stage.candidates.filter((candidate) => {
           if (options.view === "active" && rejected) return false;
           if (options.view === "rejected" && !rejected) return false;
+          if (options.view === "talent-pool" && !rejected) return false;
 
           if (searchLower) {
+            const skillHaystack = (candidate.skills ?? []).join(" ").toLowerCase();
+            const resumeHaystack = (
+              (candidate as PipelineCandidate & { resumeText?: string | null }).resumeText ?? ""
+            ).toLowerCase();
             const matchesSearch =
               candidate.name.toLowerCase().includes(searchLower) ||
               (candidate.email?.toLowerCase().includes(searchLower) ?? false) ||
-              (candidate.phone?.toLowerCase().includes(searchLower) ?? false);
+              (candidate.phone?.toLowerCase().includes(searchLower) ?? false) ||
+              skillHaystack.includes(searchLower) ||
+              resumeHaystack.includes(searchLower) ||
+              (candidate.tags ?? []).some((tag) =>
+                tag.name.toLowerCase().includes(searchLower),
+              );
 
             if (!matchesSearch) return false;
+          }
+
+          if (options.view === "talent-pool") {
+            if (!rejected) return false;
+            if (options.talentPoolTagId) {
+              const hasTag = (candidate.tags ?? []).some(
+                (tag) => tag.id === options.talentPoolTagId,
+              );
+              if (!hasTag) return false;
+            }
           }
 
           return matchesCardFilters(candidate, options.cardFilters);
@@ -170,7 +191,7 @@ export function filterPipeline(
 
 export type CandidateSortOrder = "newest" | "oldest";
 
-export type CandidateViewFilter = "active" | "rejected";
+export type CandidateViewFilter = "active" | "rejected" | "talent-pool";
 
 export type PipelineCardFilter = "hasCv" | "hasNotes" | "isNew";
 
@@ -199,6 +220,7 @@ export function incrementCandidateNoteCount(
               ...candidate,
               _count: {
                 candidateNotes: candidate._count.candidateNotes + 1,
+                documents: candidate._count.documents,
               },
             }
           : candidate,

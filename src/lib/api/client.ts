@@ -108,6 +108,14 @@ export const api = {
     profile: (id: string) =>
       request<CandidateProfile>(`/api/candidates/${id}/profile`),
 
+    neighbors: (id: string) =>
+      request<{
+        prevId: string | null;
+        nextId: string | null;
+        position: number | null;
+        total: number;
+      }>(`/api/candidates/${id}/neighbors`),
+
     create: (input: CreateCandidateInput) =>
       request<CandidateImportResult>("/api/candidates", {
         method: "POST",
@@ -126,10 +134,18 @@ export const api = {
         body: JSON.stringify(input),
       }),
 
-    updateStage: (id: string, stageId: string) =>
+    updateStage: (
+      id: string,
+      stageId: string,
+      input?: {
+        rejectionReasonId?: string;
+        rejectionNote?: string;
+        talentPoolTagIds?: string[];
+      },
+    ) =>
       request<CandidateWithRelations>(`/api/candidates/${id}`, {
         method: "PATCH",
-        body: JSON.stringify({ stageId }),
+        body: JSON.stringify({ stageId, ...input }),
       }),
 
     delete: (id: string) =>

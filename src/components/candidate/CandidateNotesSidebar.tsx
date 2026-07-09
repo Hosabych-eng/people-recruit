@@ -11,6 +11,7 @@ import { api } from "@/lib/api/client";
 type CandidateNotesSidebarProps = {
   candidateId: string;
   initialNotes: CandidateNote[];
+  onNotesChange?: (notes: CandidateNote[]) => void;
 };
 
 function NoteAvatar({ name, photoUrl }: { name: string; photoUrl: string | null }) {
@@ -37,6 +38,7 @@ function NoteAvatar({ name, photoUrl }: { name: string; photoUrl: string | null 
 export function CandidateNotesSidebar({
   candidateId,
   initialNotes,
+  onNotesChange,
 }: CandidateNotesSidebarProps) {
   const [notes, setNotes] = useState(initialNotes);
   const [content, setContent] = useState("");
@@ -53,7 +55,11 @@ export function CandidateNotesSidebar({
 
     try {
       const note = await api.candidates.notes.create(candidateId, { content: trimmed });
-      setNotes((current) => [note, ...current]);
+      setNotes((current) => {
+        const next = [note, ...current];
+        onNotesChange?.(next);
+        return next;
+      });
       setContent("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не вдалося додати примітку");
@@ -67,7 +73,11 @@ export function CandidateNotesSidebar({
 
     try {
       await api.candidates.notes.delete(candidateId, noteId);
-      setNotes((current) => current.filter((note) => note.id !== noteId));
+      setNotes((current) => {
+        const next = current.filter((note) => note.id !== noteId);
+        onNotesChange?.(next);
+        return next;
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не вдалося видалити примітку");
     }

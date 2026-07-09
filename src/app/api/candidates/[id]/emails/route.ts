@@ -7,6 +7,7 @@ import {
   compileEmailTemplate,
   plainTextToHtml,
 } from "@/lib/email-template-compile";
+import { prepareTrackedHtml } from "@/lib/email-tracking";
 import { sendGmailMessage } from "@/lib/google/gmail";
 import { getAuthenticatedGoogleClient } from "@/lib/google/oauth";
 
@@ -24,8 +25,13 @@ function serializeEmailMessage(message: {
   senderEmail: string;
   recipientName: string;
   recipientEmail: string;
+  ccEmails: string | null;
   subject: string;
   body: string;
+  isRead: boolean;
+  isClicked: boolean;
+  openedAt: Date | null;
+  clickedAt: Date | null;
   sentAt: Date;
   createdAt: Date;
 }) {
@@ -39,8 +45,13 @@ function serializeEmailMessage(message: {
     senderEmail: message.senderEmail,
     recipientName: message.recipientName,
     recipientEmail: message.recipientEmail,
+    ccEmails: message.ccEmails,
     subject: message.subject,
     body: message.body,
+    isRead: message.isRead,
+    isClicked: message.isClicked,
+    openedAt: message.openedAt?.toISOString() ?? null,
+    clickedAt: message.clickedAt?.toISOString() ?? null,
     sentAt: message.sentAt.toISOString(),
     createdAt: message.createdAt.toISOString(),
   };
@@ -50,7 +61,7 @@ export async function POST(request: Request, context: RouteContext) {
   try {
     const session = await requireSessionUser();
     const { id } = await context.params;
-    const candidate = await getCandidateOrThrow(id);
+    const candidate = await getCandidateOrThrow(id, session);
 
     const candidateEmail = candidate.email?.trim();
     if (!candidateEmail) {
@@ -68,9 +79,6 @@ export async function POST(request: Request, context: RouteContext) {
 
     const subject = compileEmailTemplate(input.subject, templateContext);
     const messageBody = compileEmailTemplate(input.body, templateContext);
-    const htmlBody = plainTextToHtml(messageBody);
-
-    const googleAuth = await getAuthenticatedGoogleClient(session.id);
 
     const emailMessage = await prisma.emailMessage.create({
       data: {
@@ -81,10 +89,14 @@ export async function POST(request: Request, context: RouteContext) {
         senderEmail: session.email,
         recipientName: candidate.name,
         recipientEmail: candidateEmail,
+        ccEmails: input.cc.length > 0 ? input.cc.join(", ") : null,
         subject,
         body: messageBody,
       },
     });
+
+    const htmlBody = prepareTrackedHtml(plainTextToHtml(messageBody), emailMessage.id);
+    const googleAuth = await getAuthenticatedGoogleClient(session.id);
 
     let deliveryStatus: "SENT" | "FAILED" = "FAILED";
     let providerId: string | null = null;
@@ -95,6 +107,7 @@ export async function POST(request: Request, context: RouteContext) {
         from: session.email,
         fromName: session.name,
         to: candidateEmail,
+        cc: input.cc,
         subject,
         text: messageBody,
         html: htmlBody,

@@ -17,6 +17,7 @@ type CandidateDocumentsTabProps = {
 const CATEGORY_LABELS: Record<CandidateDocument["category"], string> = {
   RESUME: "Резюме",
   PORTFOLIO: "Портфоліо",
+  OFFER: "Пропозиція",
   OTHER: "Інше",
 };
 

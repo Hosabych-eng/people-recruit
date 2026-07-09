@@ -9,14 +9,19 @@ function isPublicPath(pathname: string) {
   if (pathname.startsWith("/api/auth/")) return true;
   if (pathname === "/careers" || pathname.startsWith("/careers/")) return true;
   if (pathname.startsWith("/api/public/")) return true;
+  if (pathname === "/api/careers/apply") return true;
+  if (pathname === "/api/careers/options") return true;
+  if (pathname.startsWith("/api/tracking/")) return true;
   return false;
 }
 
 function isAdminOnlyPath(pathname: string) {
   return (
     pathname === "/admin" ||
+    pathname === "/settings" ||
     pathname.startsWith("/api/users") ||
     pathname.startsWith("/api/invitations") ||
+    pathname.startsWith("/api/settings") ||
     pathname === "/pipelines" ||
     pathname.startsWith("/pipelines/")
   );

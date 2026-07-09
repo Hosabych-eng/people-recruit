@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { formControlClassName } from "@/components/ui/formStyles";
 import { api } from "@/lib/api/client";
+import { exportPipelineToXlsx } from "@/lib/pipeline-export";
 import type { JobWithPipeline } from "@/types";
 
 type PeriodPreset = "7d" | "30d" | "90d";
@@ -148,6 +149,15 @@ export function VacancyReportsDashboard({
             >
               ← До воронки
             </Link>
+            {pipeline && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => exportPipelineToXlsx(pipeline)}
+              >
+                Експорт в Excel
+              </Button>
+            )}
             <Button
               size="sm"
               variant={useMock ? "primary" : "outline"}

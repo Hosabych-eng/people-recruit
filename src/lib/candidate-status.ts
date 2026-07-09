@@ -6,10 +6,10 @@ export const CANDIDATE_STATUS_OPTIONS: {
   value: CandidateStatus;
   label: string;
 }[] = [
-  { value: "new", label: "New" },
-  { value: "interviewing", label: "Interviewing" },
-  { value: "offer", label: "Offer" },
-  { value: "rejected", label: "Rejected" },
+  { value: "new", label: "Новий" },
+  { value: "interviewing", label: "Інтерв'ю" },
+  { value: "offer", label: "Офер" },
+  { value: "rejected", label: "Відмова" },
 ];
 
 const STATUS_STAGE_NAMES: Record<CandidateStatus, string[]> = {

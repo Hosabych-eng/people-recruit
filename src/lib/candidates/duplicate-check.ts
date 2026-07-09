@@ -25,11 +25,19 @@ const candidateInclude = {
   },
 } as const;
 
+function normalizePhone(phone?: string | null) {
+  if (!phone) return null;
+  const digits = phone.replace(/\D/g, "");
+  return digits.length >= 7 ? digits : null;
+}
+
 export async function findDuplicateCandidate(input: {
   email?: string;
+  phone?: string;
   resumeLink?: string;
 }) {
   const email = input.email ? normalizeEmail(input.email) : null;
+  const phone = normalizePhone(input.phone);
   const profileUrl = input.resumeLink ? normalizeProfileUrl(input.resumeLink) : null;
 
   if (email) {
@@ -38,6 +46,17 @@ export async function findDuplicateCandidate(input: {
       include: candidateInclude,
     });
     if (byEmail) return byEmail;
+  }
+
+  if (phone) {
+    const withPhones = await prisma.candidate.findMany({
+      where: { phone: { not: null } },
+      include: candidateInclude,
+    });
+    const byPhone = withPhones.find(
+      (candidate) => normalizePhone(candidate.phone) === phone,
+    );
+    if (byPhone) return byPhone;
   }
 
   if (!profileUrl) return null;

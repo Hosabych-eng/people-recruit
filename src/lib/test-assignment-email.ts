@@ -3,6 +3,7 @@ export type TestAssignmentEmailInput = {
   jobTitle: string;
   templateTitle: string;
   recruiterName: string;
+  uploadUrl?: string;
 };
 
 export function buildTestAssignmentSubject(input: TestAssignmentEmailInput) {
@@ -16,7 +17,9 @@ export function buildTestAssignmentBody(input: TestAssignmentEmailInput) {
     `Надсилаємо вам тестове завдання «${input.templateTitle}» для позиції ${input.jobTitle}.`,
     "Файл із описом завдання додано до цього листа.",
     "",
-    "Будь ласка, виконайте завдання та надішліть результат у відповідь на цей лист.",
+    input.uploadUrl
+      ? `Завантажте виконане завдання за безпечним посиланням:\n${input.uploadUrl}`
+      : "Будь ласка, виконайте завдання та надішліть результат у відповідь на цей лист.",
     "",
     "З повагою,",
     input.recruiterName,
@@ -40,7 +43,11 @@ export function buildTestAssignmentHtml(input: TestAssignmentEmailInput) {
         для позиції <strong>${escape(input.jobTitle)}</strong>.
       </p>
       <p>Файл із описом завдання додано до цього листа.</p>
-      <p>Будь ласка, виконайте завдання та надішліть результат у відповідь на цей лист.</p>
+      ${
+        input.uploadUrl
+          ? `<p>Завантажте виконане завдання за <a href="${escape(input.uploadUrl)}">безпечним посиланням</a>.</p>`
+          : "<p>Будь ласка, виконайте завдання та надішліть результат у відповідь на цей лист.</p>"
+      }
       <p>З повагою,<br />${escape(input.recruiterName)}</p>
     </div>
   `.trim();

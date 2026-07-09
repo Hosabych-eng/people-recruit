@@ -21,7 +21,7 @@ export function KnowledgeView() {
       const data = await api.knowledge.list();
       setArticles(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load articles");
+      setError(err instanceof Error ? err.message : "Не вдалося завантажити статті");
     } finally {
       setIsLoading(false);
     }
@@ -35,13 +35,13 @@ export function KnowledgeView() {
     <div className="flex min-h-full flex-col">
       <header className="border-b border-border bg-card px-4 py-5 shadow-sm sm:px-6">
         <p className="text-xs font-medium uppercase tracking-wider text-muted">
-          Knowledge base
+          База знань
         </p>
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          Team articles
+          Статті команди
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-muted">
-          Internal documentation for HR and recruiting workflows.
+          Внутрішня документація для HR та рекрутингу.
         </p>
       </header>
 
@@ -51,10 +51,11 @@ export function KnowledgeView() {
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-base font-semibold text-foreground">
-                  Published articles
+                  Опубліковані статті
                 </h2>
                 <p className="text-sm text-muted">
-                  {articles.length} entr{articles.length === 1 ? "y" : "ies"}
+                  {articles.length}{" "}
+                  {articles.length === 1 ? "запис" : articles.length < 5 ? "записи" : "записів"}
                 </p>
               </div>
             </div>
@@ -63,7 +64,7 @@ export function KnowledgeView() {
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 <span>{error}</span>
                 <Button variant="outline" size="sm" onClick={loadArticles}>
-                  Retry
+                  Повторити
                 </Button>
               </div>
             )}
@@ -72,16 +73,16 @@ export function KnowledgeView() {
               <div className="flex min-h-[280px] items-center justify-center rounded-xl border border-border bg-card">
                 <div className="flex flex-col items-center gap-3 text-muted">
                   <Spinner className="h-8 w-8" />
-                  <p className="text-sm">Loading articles…</p>
+                  <p className="text-sm">Завантаження статей…</p>
                 </div>
               </div>
             ) : articles.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border bg-card px-4 py-12 text-center">
                 <h3 className="text-base font-medium text-foreground">
-                  No articles yet
+                  Ще немає статей
                 </h3>
                 <p className="mt-2 text-sm text-muted">
-                  Create the first knowledge base entry using the form.
+                  Створіть перший запис у формі праворуч.
                 </p>
               </div>
             ) : (

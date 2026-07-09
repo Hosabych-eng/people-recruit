@@ -11,6 +11,10 @@ import {
 } from "@/lib/api/response";
 import { parseUpdateCandidateBody } from "@/lib/api/validation";
 import { requireSessionUser } from "@/lib/auth/server";
+import { resolveRejectionFieldsForStageChange } from "@/lib/rejection-reasons";
+import { assignTalentPoolTags } from "@/lib/candidate-talent-pool";
+import { syncCandidateApplication } from "@/lib/settings/defaults";
+import { maybeTriggerTestAssignmentAutomation } from "@/lib/test-assignment-automation";
 import {
   HIRED_STAGE_NAME,
   logWorkforceEvent,
@@ -22,9 +26,9 @@ type RouteContext = {
 
 export async function GET(_request: Request, context: RouteContext) {
   try {
-    await requireSessionUser();
+    const session = await requireSessionUser();
     const { id } = await context.params;
-    const candidate = await getCandidateOrThrow(id);
+    const candidate = await getCandidateOrThrow(id, session);
     return jsonResponse(candidate);
   } catch (error) {
     return errorResponse(error);
@@ -33,12 +37,15 @@ export async function GET(_request: Request, context: RouteContext) {
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    await requireSessionUser();
+    const session = await requireSessionUser();
     const { id } = await context.params;
-    const existing = await getCandidateOrThrow(id);
+    const existing = await getCandidateOrThrow(id, session);
 
     const body = await parseJsonBody<Record<string, unknown>>(request);
     const updates = parseUpdateCandidateBody(body);
+    const talentPoolTagIds = Array.isArray(body.talentPoolTagIds)
+      ? body.talentPoolTagIds.filter((id): id is string => typeof id === "string")
+      : [];
 
     let targetStageName: string | null = null;
 
@@ -48,6 +55,15 @@ export async function PATCH(request: Request, context: RouteContext) {
         existing.jobId,
       );
       targetStageName = targetStage.name;
+
+      const rejectionFields = await resolveRejectionFieldsForStageChange({
+        body,
+        targetStageName: targetStage.name,
+        currentRejectionReasonId: existing.rejectionReasonId,
+      });
+      Object.assign(updates, rejectionFields);
+
+      await syncCandidateApplication(id, existing.jobId, updates.stageId);
     }
 
     const candidate = await prisma.candidate.update({
@@ -58,6 +74,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         job: {
           select: { id: true, title: true, status: true },
         },
+        rejectionReason: true,
       },
     });
 
@@ -76,6 +93,22 @@ export async function PATCH(request: Request, context: RouteContext) {
       });
     }
 
+    if (updates.stageId && existing.stageId !== updates.stageId) {
+      await maybeTriggerTestAssignmentAutomation({
+        candidateId: id,
+        stageId: updates.stageId,
+        actorUserId: session.id,
+        actorName: session.name,
+        actorEmail: session.email,
+      }).catch((error) => {
+        console.error("[test-assignment] automation failed", error);
+      });
+    }
+
+    if (talentPoolTagIds.length > 0) {
+      await assignTalentPoolTags(id, talentPoolTagIds);
+    }
+
     return jsonResponse(candidate);
   } catch (error) {
     if (error instanceof ApiError) return errorResponse(error);
@@ -85,9 +118,9 @@ export async function PATCH(request: Request, context: RouteContext) {
 
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
-    await requireSessionUser();
+    const session = await requireSessionUser();
     const { id } = await context.params;
-    await getCandidateOrThrow(id);
+    await getCandidateOrThrow(id, session);
 
     await prisma.candidate.delete({ where: { id } });
 

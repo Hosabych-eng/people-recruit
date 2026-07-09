@@ -35,8 +35,12 @@ export function serializeCandidateTestAssignment(assignment: {
   candidateId: string;
   templateId: string;
   sentByName: string;
-  status: "QUEUED" | "SENT" | "FAILED";
+  status: "QUEUED" | "SENT" | "FAILED" | "SUBMITTED";
   gmailMessageId: string | null;
+  uploadToken?: string | null;
+  uploadExpiresAt?: Date | null;
+  submittedAt?: Date | null;
+  submissionNote?: string | null;
   sentAt: Date | null;
   createdAt: Date;
   template: {
@@ -54,6 +58,9 @@ export function serializeCandidateTestAssignment(assignment: {
     sentByName: assignment.sentByName,
     status: assignment.status,
     gmailMessageId: assignment.gmailMessageId,
+    uploadExpiresAt: assignment.uploadExpiresAt?.toISOString() ?? null,
+    submittedAt: assignment.submittedAt?.toISOString() ?? null,
+    submissionNote: assignment.submissionNote ?? null,
     sentAt: assignment.sentAt?.toISOString() ?? null,
     createdAt: assignment.createdAt.toISOString(),
   };
@@ -62,7 +69,7 @@ export function serializeCandidateTestAssignment(assignment: {
 export function serializeCandidateDocument(document: {
   id: string;
   candidateId: string;
-  category: "RESUME" | "PORTFOLIO" | "OTHER";
+  category: "RESUME" | "PORTFOLIO" | "OFFER" | "OTHER";
   title: string;
   fileName: string;
   mimeType: string;

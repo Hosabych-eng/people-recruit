@@ -3,8 +3,8 @@ import { CareersHeader } from "@/components/careers/CareersHeader";
 import "./careers.css";
 
 export const metadata: Metadata = {
-  title: "Careers | PeopleRecruit",
-  description: "Open positions and career opportunities",
+  title: "Вакансії | PeopleRecruit",
+  description: "Відкриті позиції та кар'єрні можливості",
 };
 
 export default function PublicLayout({

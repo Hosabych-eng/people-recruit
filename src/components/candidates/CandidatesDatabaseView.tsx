@@ -5,10 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { CandidateWithRelations } from "@/types";
 import { ImportCandidateModal } from "@/components/candidate/ImportCandidateModal";
+import { CandidateAvatar } from "@/components/ui/CandidateAvatar";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { formControlClassName } from "@/components/ui/formStyles";
 import { getSourceLabel } from "@/lib/application-sources";
+import { isRejectedStageName } from "@/lib/pipeline-utils";
+import { exportCandidatesToXlsx } from "@/lib/candidates-export";
 import { api } from "@/lib/api/client";
 import type { ApplicationSource } from "@prisma/client";
 
@@ -123,7 +126,7 @@ export function CandidatesDatabaseView() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-medium uppercase tracking-wider text-muted">
-              Recruiting
+              Рекрутинг
             </p>
             <h1 className="text-xl font-semibold tracking-tight text-foreground">
               База кандидатів
@@ -132,9 +135,19 @@ export function CandidatesDatabaseView() {
               Усі кандидати з усіх вакансій
             </p>
           </div>
-          <Button size="sm" onClick={() => void openImportForFirstJob()}>
-            Імпортувати кандидата
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={candidates.length === 0}
+              onClick={() => exportCandidatesToXlsx(candidates, "bazа_кандидатів")}
+            >
+              Експорт в Excel
+            </Button>
+            <Button size="sm" onClick={() => void openImportForFirstJob()}>
+              Імпортувати кандидата
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -168,53 +181,65 @@ export function CandidatesDatabaseView() {
             <table className="min-w-full divide-y divide-border text-sm">
               <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                 <tr>
-                  <th className="px-4 py-3">Ім&apos;я</th>
-                  <th className="px-4 py-3">Email</th>
-                  <th className="px-4 py-3">Профіль</th>
-                  <th className="px-4 py-3">Вакансія</th>
-                  <th className="px-4 py-3">Етап</th>
-                  <th className="px-4 py-3">Джерело</th>
-                  <th className="px-4 py-3">Додано</th>
-                  <th className="px-4 py-3 text-right">Дії</th>
+                  <th className="px-4 py-2">Кандидат</th>
+                  <th className="px-4 py-2">Оцінка</th>
+                  <th className="px-4 py-2">Вакансія / Етап</th>
+                  <th className="px-4 py-2">Останній коментар</th>
+                  <th className="px-4 py-2 text-right">Дії</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {candidates.map((candidate) => (
-                  <tr
-                    key={candidate.id}
-                    className="cursor-pointer hover:bg-slate-50"
-                    onClick={() => router.push(`/candidates/${candidate.id}`)}
-                  >
-                    <td className="px-4 py-3 font-medium text-foreground">
-                      {candidate.name}
-                    </td>
-                    <td className="px-4 py-3 text-muted">
-                      {candidate.email ?? "—"}
-                    </td>
-                    <td className="max-w-[12rem] truncate px-4 py-3">
-                      {candidate.resumeLink ? (
-                        <a
-                          href={candidate.resumeLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline"
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          {candidate.resumeLink}
-                        </a>
-                      ) : (
-                        <span className="text-muted">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-muted">{candidate.job.title}</td>
-                    <td className="px-4 py-3 text-muted">{candidate.stage.name}</td>
-                    <td className="px-4 py-3 text-muted">
-                      {getSourceLabel(candidate.applicationSource as ApplicationSource)}
-                    </td>
-                    <td className="px-4 py-3 text-muted">
-                      {formatAddedDate(String(candidate.createdAt))}
-                    </td>
-                    <td className="px-4 py-3 text-right">
+                {candidates.map((candidate) => {
+                  const isRejected = isRejectedStageName(candidate.stage.name);
+                  const lastComment = candidate.lastNote?.content ?? "—";
+
+                  return (
+                    <tr
+                      key={candidate.id}
+                      className="cursor-pointer hover:bg-slate-50"
+                      onClick={() => router.push(`/candidates/${candidate.id}`)}
+                    >
+                      <td className="px-4 py-2">
+                        <div className="flex items-center gap-2">
+                          <CandidateAvatar
+                            name={candidate.name}
+                            avatarUrl={candidate.avatarUrl}
+                            seed={candidate.id}
+                            size="sm"
+                            className="!h-8 !w-8"
+                          />
+                          <div className="min-w-0">
+                            <p className="truncate font-medium text-foreground">{candidate.name}</p>
+                            <p className="truncate text-xs text-muted">{candidate.email ?? "—"}</p>
+                            {isRejected && candidate.rejectionReason && (
+                              <span className="mt-0.5 inline-block rounded bg-red-50 px-1.5 py-0.5 text-[10px] text-red-700">
+                                {candidate.rejectionReason.name}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2">
+                        {candidate.score != null ? (
+                          <span className="inline-flex rounded bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                            {candidate.score}/5
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-xs text-muted">
+                        <p className="font-medium text-foreground">{candidate.job.title}</p>
+                        <p>{candidate.stage.name}</p>
+                        <p className="text-[11px]">
+                          {getSourceLabel(candidate.applicationSource as ApplicationSource)} ·{" "}
+                          {formatAddedDate(String(candidate.createdAt))}
+                        </p>
+                      </td>
+                      <td className="max-w-xs px-4 py-2 text-xs text-muted">
+                        <p className="line-clamp-2">{lastComment}</p>
+                      </td>
+                      <td className="px-4 py-2 text-right">
                       <button
                         type="button"
                         aria-label={`Видалити ${candidate.name}`}
@@ -234,7 +259,8 @@ export function CandidatesDatabaseView() {
                       </button>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

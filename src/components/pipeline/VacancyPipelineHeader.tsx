@@ -27,6 +27,7 @@ type VacancyPipelineHeaderProps = {
   onShare?: () => void;
   onEdit?: () => void;
   canAddCandidate?: boolean;
+  canManageJob?: boolean;
 };
 
 export function VacancyPipelineHeader({
@@ -38,6 +39,7 @@ export function VacancyPipelineHeader({
   onShare,
   onEdit,
   canAddCandidate = false,
+  canManageJob = false,
 }: VacancyPipelineHeaderProps) {
   const filled = countFilledPositions(pipeline);
   const headcount = pipeline.headcount ?? 1;
@@ -70,15 +72,17 @@ export function VacancyPipelineHeader({
               <ShareIcon />
               Поділитися
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onEdit}
-              className="gap-1.5"
-            >
-              <EditIcon />
-              Редагувати
-            </Button>
+            {canManageJob && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onEdit}
+                className="gap-1.5"
+              >
+                <EditIcon />
+                Редагувати
+              </Button>
+            )}
             {canAddCandidate && (
               <>
                 <Button size="sm" variant="outline" onClick={onImportCandidate} className="gap-1">

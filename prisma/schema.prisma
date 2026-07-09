@@ -40,6 +40,7 @@ enum ApplicationSource {
   SNOOPGAME
   MANUAL
   CAREER_SITE
+  CAREERS
 }
 
 enum InterviewStatus {
@@ -70,6 +71,7 @@ enum EmailDirection {
 enum CandidateDocumentCategory {
   RESUME
   PORTFOLIO
+  OFFER
   OTHER
 }
 
@@ -77,6 +79,12 @@ enum TestAssignmentDeliveryStatus {
   QUEUED
   SENT
   FAILED
+  SUBMITTED
+}
+
+enum LanguageType {
+  ENGLISH
+  CHINESE
 }
 
 model User {
@@ -90,8 +98,10 @@ model User {
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
-  accounts Account[]
-  sessions Session[]
+  accounts     Account[]
+  sessions     Session[]
+  assignedJobs Job[]       @relation("JobRecruiter")
+  candidates   Candidate[] @relation("CandidateRecruiter")
 
   @@index([role])
   @@index([status])
@@ -150,6 +160,114 @@ model Invitation {
   @@map("invitations")
 }
 
+model PipelineStageTemplate {
+  id              String   @id @default(cuid())
+  name            String   @unique
+  orderInPipeline Int
+  color           String?  @default("#64748b")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([orderInPipeline])
+  @@map("pipeline_stage_templates")
+}
+
+model CandidateTag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  color     String   @default("#6366f1")
+  createdAt DateTime @default(now())
+
+  assignments CandidateTagAssignment[]
+
+  @@map("candidate_tags")
+}
+
+model CandidateTagAssignment {
+  candidateId String
+  tagId       String
+
+  candidate Candidate    @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  tag       CandidateTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([candidateId, tagId])
+  @@map("candidate_tag_assignments")
+}
+
+model InterviewTemplate {
+  id              String        @id @default(cuid())
+  title           String
+  subject         String?
+  body            String        @db.Text
+  durationMinutes Int           @default(45)
+  type            InterviewType @default(ONLINE)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([createdAt])
+  @@map("interview_templates")
+}
+
+model LanguageLevelOption {
+  id        String       @id @default(cuid())
+  language  LanguageType
+  label     String
+  sortOrder Int          @default(0)
+  createdAt DateTime     @default(now())
+
+  @@unique([language, label])
+  @@index([language, sortOrder])
+  @@map("language_level_options")
+}
+
+enum CandidateFieldType {
+  STANDARD
+  TEXT
+  DROPDOWN
+}
+
+model RejectionReason {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  candidates Candidate[]
+
+  @@index([sortOrder])
+  @@map("rejection_reasons")
+}
+
+model CandidateFieldDefinition {
+  id        String             @id @default(cuid())
+  fieldKey  String             @unique
+  label     String
+  fieldType CandidateFieldType @default(STANDARD)
+  visible   Boolean            @default(true)
+  sortOrder Int                @default(0)
+  options   String?            @db.Text
+  isCustom  Boolean            @default(false)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@index([sortOrder])
+  @@map("candidate_field_definitions")
+}
+
+model CandidateCustomFieldValue {
+  id          String   @id @default(cuid())
+  candidateId String
+  fieldKey    String
+  value       String?
+  updatedAt   DateTime @updatedAt
+
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@unique([candidateId, fieldKey])
+  @@index([candidateId])
+  @@map("candidate_custom_field_values")
+}
+
 model Job {
   id               String      @id @default(cuid())
   title            String
@@ -161,14 +279,20 @@ model Job {
   employmentType   String?
   status           JobStatus   @default(DRAFT)
   headcount        Int         @default(1)
+  recruiterId      String?
+  openedAt         DateTime?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
+  recruiter       User?                  @relation("JobRecruiter", fields: [recruiterId], references: [id], onDelete: SetNull)
   stages          Stage[]
   candidates      Candidate[]
+  applications    CandidateApplication[]
   workforceEvents WorkforceEvent[]
+  evaluationCriteria JobEvaluationCriterion[]
 
   @@index([status])
+  @@index([recruiterId])
   @@map("jobs")
 }
 
@@ -181,8 +305,9 @@ model Stage {
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
-  job             Job         @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  candidates      Candidate[]
+  job          Job                    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  candidates   Candidate[]
+  applications CandidateApplication[]
 
   @@unique([jobId, orderInPipeline])
   @@index([jobId])
@@ -190,36 +315,73 @@ model Stage {
 }
 
 model Candidate {
-  id                String             @id @default(cuid())
+  id                String            @id @default(cuid())
   name              String
   email             String?
   phone             String?
   resumeLink        String?
+  avatarUrl         String?
+  position          String?
+  coverLetter       String?           @db.Text
+  englishLevel      String?
+  chineseLevel      String?
   expectedSalary    Int?
-  salaryCurrency    String?            @default("USD")
-  applicationSource ApplicationSource  @default(MANUAL)
+  salaryCurrency    String?           @default("USD")
+  applicationSource ApplicationSource @default(MANUAL)
   score             Int?
-  emailsSent        Int                @default(0)
-  emailsReceived    Int                @default(0)
-  isNew             Boolean            @default(true)
+  skills            String[]          @default([])
+  resumeText        String?           @db.Text
+  evaluationAverage Float?
+  emailsSent        Int               @default(0)
+  emailsReceived    Int               @default(0)
+  isNew             Boolean           @default(true)
   stageId           String
   jobId             String
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  recruiterId       String?
+  rejectionReasonId String?
+  rejectionNote     String?           @db.Text
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
-  stage           Stage            @relation(fields: [stageId], references: [id], onDelete: Restrict)
-  job             Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  stage           Stage                    @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  job             Job                      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  recruiter       User?                    @relation("CandidateRecruiter", fields: [recruiterId], references: [id], onDelete: SetNull)
+  rejectionReason RejectionReason?         @relation(fields: [rejectionReasonId], references: [id], onDelete: SetNull)
+  tagAssignments  CandidateTagAssignment[]
+  applications    CandidateApplication[]
   workforceEvents WorkforceEvent[]
   candidateNotes  CandidateNote[]
   interviews      Interview[]
   emailMessages   EmailMessage[]
   testAssignments CandidateTestAssignment[]
   documents       CandidateDocument[]
+  customFieldValues CandidateCustomFieldValue[]
+  evaluationScores CandidateEvaluationScore[]
 
   @@index([stageId])
   @@index([jobId])
   @@index([email])
+  @@index([recruiterId])
+  @@index([rejectionReasonId])
   @@map("candidates")
+}
+
+model CandidateApplication {
+  id          String   @id @default(cuid())
+  candidateId String
+  jobId       String
+  stageId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  job       Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  stage     Stage     @relation(fields: [stageId], references: [id], onDelete: Restrict)
+
+  @@unique([candidateId, jobId])
+  @@index([candidateId])
+  @@index([jobId, stageId])
+  @@map("candidate_applications")
 }
 
 model CandidateNote {
@@ -247,6 +409,8 @@ model Interview {
   type            InterviewType   @default(ONLINE)
   durationMinutes Int             @default(45)
   messageBody     String?         @db.Text
+  meetLink        String?
+  calendarEventId String?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
@@ -254,6 +418,7 @@ model Interview {
   emailMessages EmailMessage[]
 
   @@index([candidateId, scheduledAt])
+  @@index([meetLink])
   @@map("interviews")
 }
 
@@ -267,8 +432,13 @@ model EmailMessage {
   senderEmail    String
   recipientName  String
   recipientEmail String
+  ccEmails       String?
   subject        String
   body           String             @db.Text
+  isRead         Boolean            @default(false)
+  isClicked      Boolean            @default(false)
+  openedAt       DateTime?
+  clickedAt      DateTime?
   sentAt         DateTime           @default(now())
   providerId     String?
   createdAt      DateTime           @default(now())
@@ -334,21 +504,33 @@ model TestAssignmentTemplate {
 }
 
 model CandidateTestAssignment {
-  id             String                       @id @default(cuid())
-  candidateId    String
-  templateId     String
-  sentById       String?
-  sentByName     String
-  status         TestAssignmentDeliveryStatus @default(QUEUED)
-  gmailMessageId String?
-  sentAt         DateTime?
-  createdAt      DateTime                     @default(now())
+  id              String                       @id @default(cuid())
+  candidateId     String
+  templateId      String
+  sentById        String?
+  sentByName      String
+  status          TestAssignmentDeliveryStatus @default(QUEUED)
+  gmailMessageId  String?
+  uploadToken     String?                      @unique
+  uploadExpiresAt DateTime?
+  submittedAt     DateTime?
+  submissionNote  String?                      @db.Text
+  sentAt          DateTime?
+  createdAt       DateTime                     @default(now())
 
   candidate Candidate              @relation(fields: [candidateId], references: [id], onDelete: Cascade)
   template  TestAssignmentTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
 
   @@index([candidateId, createdAt])
   @@map("candidate_test_assignments")
+}
+
+model IntegrationState {
+  key       String   @id
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+
+  @@map("integration_state")
 }
 
 model CandidateDocument {
@@ -380,4 +562,35 @@ model EmailTemplate {
 
   @@index([createdAt])
   @@map("email_templates")
+}
+
+model JobEvaluationCriterion {
+  id        String   @id @default(cuid())
+  jobId     String
+  name      String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  job    Job                      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  scores CandidateEvaluationScore[]
+
+  @@index([jobId, sortOrder])
+  @@map("job_evaluation_criteria")
+}
+
+model CandidateEvaluationScore {
+  id          String   @id @default(cuid())
+  candidateId String
+  criterionId String
+  score       Int
+  authorId    String?
+  authorName  String
+  updatedAt   DateTime @updatedAt
+
+  candidate Candidate              @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  criterion JobEvaluationCriterion @relation(fields: [criterionId], references: [id], onDelete: Cascade)
+
+  @@unique([candidateId, criterionId])
+  @@index([candidateId])
+  @@map("candidate_evaluation_scores")
 }

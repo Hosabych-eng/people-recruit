@@ -25,11 +25,18 @@ type PipelineFilterBarProps = {
   onSortOrderChange: (order: CandidateSortOrder) => void;
   cardFilters: PipelineCardFilter[];
   onCardFiltersChange: (filters: PipelineCardFilter[]) => void;
+  onOpenImportModal?: () => void;
+  blindHiring: boolean;
+  onBlindHiringChange: (enabled: boolean) => void;
+  talentPoolTagId?: string;
+  onTalentPoolTagChange: (tagId: string | undefined) => void;
+  talentPoolTags: { id: string; name: string }[];
 };
 
 const VIEW_TABS: { id: CandidateViewFilter; label: string }[] = [
   { id: "active", label: "Активні" },
   { id: "rejected", label: "Відхилені" },
+  { id: "talent-pool", label: "Talent Pool" },
 ];
 
 const ADD_FILTER_OPTIONS: { id: PipelineCardFilter; label: string }[] = [
@@ -48,6 +55,12 @@ export function PipelineFilterBar({
   onSortOrderChange,
   cardFilters,
   onCardFiltersChange,
+  onOpenImportModal,
+  blindHiring,
+  onBlindHiringChange,
+  talentPoolTagId,
+  onTalentPoolTagChange,
+  talentPoolTags,
 }: PipelineFilterBarProps) {
   const toggleCardFilter = (filter: PipelineCardFilter) => {
     onCardFiltersChange(
@@ -86,6 +99,33 @@ export function PipelineFilterBar({
               );
             })}
           </div>
+
+          {viewFilter === "talent-pool" && talentPoolTags.length > 0 && (
+            <select
+              value={talentPoolTagId ?? ""}
+              onChange={(event) =>
+                onTalentPoolTagChange(event.target.value || undefined)
+              }
+              className={`${formControlClassName} py-1.5 text-sm`}
+            >
+              <option value="">All talent pool tags</option>
+              {talentPoolTags.map((tag) => (
+                <option key={tag.id} value={tag.id}>
+                  {tag.name}
+                </option>
+              ))}
+            </select>
+          )}
+
+          <label className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm text-foreground shadow-sm">
+            <input
+              type="checkbox"
+              checked={blindHiring}
+              onChange={(event) => onBlindHiringChange(event.target.checked)}
+              className="h-4 w-4 rounded border-border"
+            />
+            Blind Hiring
+          </label>
 
           <DropdownMenu
             label={
@@ -142,13 +182,21 @@ export function PipelineFilterBar({
               },
             ]}
           />
+          <button
+            type="button"
+            onClick={onOpenImportModal}
+            className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-slate-50"
+          >
+            <ImportIcon />
+            <span>Import Candidates</span>
+          </button>
 
           <DropdownMenu
             align="right"
             label={
               <>
                 <ExportIcon />
-                <span>Експорт у</span>
+                <span>Експорт в Excel</span>
               </>
             }
             items={[
@@ -229,6 +277,17 @@ function ExportIcon() {
       <path d="M12 3v12" />
       <path d="m7 10 5 5 5-5" />
       <path d="M5 21h14" />
+    </svg>
+  );
+}
+
+function ImportIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4 text-muted" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <path d="M12 3v12" />
+      <path d="m7 10 5 5 5-5" />
+      <path d="M5 21h14" />
+      <path d="M19 8v4M17 10h4" />
     </svg>
   );
 }
