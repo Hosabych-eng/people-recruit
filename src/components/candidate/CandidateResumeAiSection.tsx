@@ -13,7 +13,7 @@ const CandidateAiAnalysisPanel = dynamic(
 
 type CandidateResumeAiSectionProps = {
   candidateId: string;
-  resumeViewerUrl: string;
+  resumeViewerUrl: string | null;
   hasPdfResume: boolean;
 };
 
@@ -84,13 +84,28 @@ export function CandidateResumeAiSection({
       ) : (
         <div className="grid gap-3 lg:grid-cols-2">
           <div className="min-h-[28rem] rounded border border-border bg-white p-1">
-            {showPdf ? (
+            {showPdf && resumeViewerUrl ? (
               <iframe
                 title="Резюме"
                 src={resumeViewerUrl}
                 loading="lazy"
                 className="h-full min-h-[28rem] w-full rounded"
               />
+            ) : showPdf ? (
+              <div className="flex h-full min-h-[28rem] flex-col items-center justify-center gap-3 bg-gradient-to-b from-slate-50 to-white px-6 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 ring-1 ring-border">
+                  <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
+                  </svg>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-foreground">No valid resume attached</p>
+                  <p className="max-w-xs text-xs text-muted">
+                    Upload a PDF resume or add a valid portfolio link to preview it here.
+                  </p>
+                </div>
+              </div>
             ) : (
               <PdfSkeleton />
             )}

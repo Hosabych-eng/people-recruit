@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { formLabelClassName } from "@/components/ui/formStyles";
 import { getSourceLabel } from "@/lib/application-sources";
 import { getStandardFieldDisplayValue } from "@/lib/candidate-fields";
-import { candidateHasPdfResume } from "@/lib/resume-helpers";
+import { candidateHasPdfResume, resolveResumePreviewUrl } from "@/lib/resume-helpers";
 import type { ApplicationSource } from "@prisma/client";
 import { api } from "@/lib/api/client";
 
@@ -18,6 +18,7 @@ type CandidateHomeTabProps = {
   profile: CandidateProfile;
   onProfileChange: (profile: CandidateProfile) => void;
   onNotesChange: (notes: CandidateNote[]) => void;
+  blindHiring?: boolean;
 };
 
 const OVERVIEW_KEYS = new Set(["name", "position", "source"]);
@@ -74,6 +75,7 @@ export function CandidateHomeTab({
   profile,
   onProfileChange,
   onNotesChange,
+  blindHiring = false,
 }: CandidateHomeTabProps) {
   const [score, setScore] = useState(profile.score ?? 0);
   const [isSavingScore, setIsSavingScore] = useState(false);
@@ -85,9 +87,12 @@ export function CandidateHomeTab({
     [profile.documents],
   );
 
-  const resumeViewerUrl = resumeDoc
-    ? `/api/candidates/${profile.id}/documents/${resumeDoc.id}`
-    : profile.resumeLink;
+  const resumeViewerUrl = resolveResumePreviewUrl(profile, resumeDoc);
+  const hasPdfResume = candidateHasPdfResume({
+    documents: profile.documents,
+    resumeLink: profile.resumeLink,
+  });
+  const showResumeSection = Boolean(resumeViewerUrl || hasPdfResume);
 
   useEffect(() => {
     void fetch("/api/candidate-fields")
@@ -113,6 +118,9 @@ export function CandidateHomeTab({
   };
 
   const renderFieldValue = (field: CandidateFieldSchemaItem) => {
+    if (blindHiring && (field.fieldKey === "email" || field.fieldKey === "phone")) {
+      return "—";
+    }
     if (field.isCustom) {
       return profile.customFields[field.fieldKey] || "—";
     }
@@ -145,12 +153,14 @@ export function CandidateHomeTab({
           <div className="mb-2 flex items-center gap-2">
             <CandidateAvatar
               name={profile.name}
-              avatarUrl={profile.avatarUrl}
+              avatarUrl={blindHiring ? null : profile.avatarUrl}
               seed={profile.id}
               size="sm"
             />
             <div>
-              <p className="text-sm font-semibold text-foreground">{profile.name}</p>
+              <p className="text-sm font-semibold text-foreground">
+                {blindHiring ? `Candidate ${profile.id.slice(0, 6)}` : profile.name}
+              </p>
               <p className="text-[11px] text-muted">{profile.position ?? profile.job.title}</p>
             </div>
           </div>
@@ -236,14 +246,11 @@ export function CandidateHomeTab({
           </section>
         )}
 
-        {(resumeDoc || profile.resumeLink) && (
+        {(resumeDoc || profile.resumeLink || hasPdfResume) && showResumeSection && (
           <CandidateResumeAiSection
             candidateId={profile.id}
-            resumeViewerUrl={resumeViewerUrl!}
-            hasPdfResume={candidateHasPdfResume({
-              documents: profile.documents,
-              resumeLink: profile.resumeLink,
-            })}
+            resumeViewerUrl={resumeViewerUrl}
+            hasPdfResume={hasPdfResume}
           />
         )}
       </div>

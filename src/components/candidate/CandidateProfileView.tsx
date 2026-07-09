@@ -18,11 +18,15 @@ import { CandidateProfileDetails } from "@/components/candidate/CandidateProfile
 import { EditCandidateModal } from "@/components/candidate/EditCandidateModal";
 import { Toast } from "@/components/ui/Toast";
 import { getSourceLabel } from "@/lib/application-sources";
+import { maskCandidateName } from "@/lib/blind-hiring";
 import { api } from "@/lib/api/client";
 import type { ApplicationSource } from "@prisma/client";
 
 type CandidateProfileViewProps = {
   profile: CandidateProfile;
+  variant?: "page" | "drawer";
+  onClose?: () => void;
+  blindHiring?: boolean;
 };
 
 const ENABLED_TABS = new Set<CandidateProfileTab>([
@@ -43,10 +47,16 @@ function formatAddedDate(value: string) {
   }).format(new Date(value));
 }
 
-export function CandidateProfileView({ profile: initialProfile }: CandidateProfileViewProps) {
+export function CandidateProfileView({
+  profile: initialProfile,
+  variant = "page",
+  onClose,
+  blindHiring = false,
+}: CandidateProfileViewProps) {
   const router = useRouter();
   const { user } = useAuth();
   const [profile, setProfile] = useState(initialProfile);
+  const isDrawer = variant === "drawer";
   const [activeTab, setActiveTab] = useState<CandidateProfileTab>("home");
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -60,8 +70,13 @@ export function CandidateProfileView({ profile: initialProfile }: CandidateProfi
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    setProfile(initialProfile);
+  }, [initialProfile]);
+
+  useEffect(() => {
+    if (isDrawer) return;
     void api.candidates.neighbors(profile.id).then(setNeighbors).catch(() => setNeighbors(null));
-  }, [profile.id]);
+  }, [isDrawer, profile.id]);
 
   useEffect(() => {
     if (!isMenuOpen) return;
@@ -80,7 +95,11 @@ export function CandidateProfileView({ profile: initialProfile }: CandidateProfi
     if (!window.confirm(`Видалити кандидата ${profile.name}?`)) return;
     try {
       await api.candidates.delete(profile.id);
-      router.push("/recruiting");
+      if (isDrawer) {
+        onClose?.();
+      } else {
+        router.push("/recruiting");
+      }
     } catch (err) {
       setToastMessage(err instanceof Error ? err.message : "Не вдалося видалити кандидата");
     }
@@ -122,20 +141,43 @@ export function CandidateProfileView({ profile: initialProfile }: CandidateProfi
     setToastMessage("Лист надіслано");
   };
 
+  const displayName = blindHiring
+    ? maskCandidateName(profile.name, profile.id)
+    : profile.name;
+
+  const handleClose = () => {
+    if (isDrawer) {
+      onClose?.();
+      return;
+    }
+    router.push("/recruiting");
+  };
+
   return (
-    <div className="flex min-h-full flex-col bg-background">
-      <header className="border-b border-border bg-card px-4 py-3">
+    <div
+      className={
+        isDrawer
+          ? "flex h-full min-h-0 flex-col overflow-hidden bg-background"
+          : "flex min-h-full flex-col bg-background"
+      }
+    >
+      <header className="shrink-0 border-b border-border bg-card px-4 py-3">
         <div className="flex items-start justify-between gap-4">
           <div className="flex min-w-0 items-start gap-4">
             <CandidateAvatar
-              name={profile.name}
-              avatarUrl={profile.avatarUrl}
+              name={displayName}
+              avatarUrl={blindHiring ? null : profile.avatarUrl}
               seed={profile.id}
               size="md"
             />
             <div className="min-w-0">
+              {isDrawer && (
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-muted">
+                  Quick Peek
+                </p>
+              )}
               <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                {profile.name}
+                {displayName}
               </h1>
               <p className="mt-1 text-sm text-muted">
                 Додано {formatAddedDate(profile.createdAt)},{" "}
@@ -145,62 +187,66 @@ export function CandidateProfileView({ profile: initialProfile }: CandidateProfi
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              aria-label="Попередній кандидат"
-              disabled={!neighbors?.prevId}
-              onClick={() => neighbors?.prevId && router.push(`/candidates/${neighbors.prevId}`)}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              ‹
-            </button>
-            <button
-              type="button"
-              aria-label="Наступний кандидат"
-              disabled={!neighbors?.nextId}
-              onClick={() => neighbors?.nextId && router.push(`/candidates/${neighbors.nextId}`)}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              ›
-            </button>
-            <div className="relative" ref={menuRef}>
-              <button
-                type="button"
-                aria-label="Меню"
-                aria-expanded={isMenuOpen}
-                onClick={() => setIsMenuOpen((open) => !open)}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted hover:bg-slate-50"
-              >
-                ···
-              </button>
-              {isMenuOpen && (
-                <div className="absolute right-0 z-20 mt-1 w-44 rounded-lg border border-border bg-card py-1 shadow-lg">
+            {!isDrawer && (
+              <>
+                <button
+                  type="button"
+                  aria-label="Попередній кандидат"
+                  disabled={!neighbors?.prevId}
+                  onClick={() => neighbors?.prevId && router.push(`/candidates/${neighbors.prevId}`)}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  aria-label="Наступний кандидат"
+                  disabled={!neighbors?.nextId}
+                  onClick={() => neighbors?.nextId && router.push(`/candidates/${neighbors.nextId}`)}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  ›
+                </button>
+                <div className="relative" ref={menuRef}>
                   <button
                     type="button"
-                    className="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      setIsEditOpen(true);
-                    }}
+                    aria-label="Меню"
+                    aria-expanded={isMenuOpen}
+                    onClick={() => setIsMenuOpen((open) => !open)}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted hover:bg-slate-50"
                   >
-                    Редагувати профіль
+                    ···
                   </button>
-                  <button
-                    type="button"
-                    className="block w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      void handleDeleteCandidate();
-                    }}
-                  >
-                    Видалити кандидата
-                  </button>
+                  {isMenuOpen && (
+                    <div className="absolute right-0 z-20 mt-1 w-44 rounded-lg border border-border bg-card py-1 shadow-lg">
+                      <button
+                        type="button"
+                        className="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
+                        onClick={() => {
+                          setIsMenuOpen(false);
+                          setIsEditOpen(true);
+                        }}
+                      >
+                        Редагувати профіль
+                      </button>
+                      <button
+                        type="button"
+                        className="block w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                        onClick={() => {
+                          setIsMenuOpen(false);
+                          void handleDeleteCandidate();
+                        }}
+                      >
+                        Видалити кандидата
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </>
+            )}
             <button
               type="button"
-              onClick={() => router.push("/recruiting")}
+              onClick={handleClose}
               className="inline-flex h-9 items-center gap-1 rounded-lg border border-border px-3 text-sm font-medium text-foreground hover:bg-slate-50"
             >
               Закрити
@@ -234,13 +280,18 @@ export function CandidateProfileView({ profile: initialProfile }: CandidateProfi
         </nav>
       </header>
 
-      <div className="mx-auto grid w-full max-w-[1400px] flex-1 gap-4 px-4 py-4 lg:grid-cols-[minmax(0,1fr)_300px]">
+      <div
+        className={`mx-auto grid w-full flex-1 gap-4 overflow-y-auto px-4 py-4 lg:grid-cols-[minmax(0,1fr)_300px] ${
+          isDrawer ? "max-w-none" : "max-w-[1400px]"
+        }`}
+      >
         <section className="min-w-0">
           {activeTab === "home" && (
             <CandidateHomeTab
               profile={profile}
               onProfileChange={setProfile}
               onNotesChange={(notes) => setProfile((current) => ({ ...current, notes }))}
+              blindHiring={blindHiring}
             />
           )}
           {activeTab === "offers" && (
@@ -248,8 +299,8 @@ export function CandidateProfileView({ profile: initialProfile }: CandidateProfi
               profile={profile}
               onProfileChange={setProfile}
               candidateId={profile.id}
-              candidateName={profile.name}
-              candidateEmail={profile.email}
+              candidateName={displayName}
+              candidateEmail={blindHiring ? null : profile.email}
               jobTitle={profile.job.title}
               recruiterName={recruiterName}
               documents={profile.documents}
@@ -261,8 +312,8 @@ export function CandidateProfileView({ profile: initialProfile }: CandidateProfi
           {activeTab === "interviews" && (
             <InterviewsTab
               candidateId={profile.id}
-              candidateName={profile.name}
-              candidateEmail={profile.email}
+              candidateName={displayName}
+              candidateEmail={blindHiring ? null : profile.email}
               interviews={profile.interviews}
               jobTitle={profile.job.title}
               recruiterName={recruiterName}
@@ -273,8 +324,8 @@ export function CandidateProfileView({ profile: initialProfile }: CandidateProfi
           {activeTab === "emails" && (
             <CandidateEmailsTab
               candidateId={profile.id}
-              candidateName={profile.name}
-              candidateEmail={profile.email}
+              candidateName={displayName}
+              candidateEmail={blindHiring ? null : profile.email}
               jobTitle={profile.job.title}
               recruiterName={recruiterName}
               emails={profile.emails}
@@ -288,7 +339,7 @@ export function CandidateProfileView({ profile: initialProfile }: CandidateProfi
           {activeTab === "test-assignments" && (
             <CandidateTestAssignmentsTab
               candidateId={profile.id}
-              candidateName={profile.name}
+              candidateName={displayName}
               assignments={profile.testAssignments}
               onAssignmentSent={handleTestAssignmentSent}
             />
