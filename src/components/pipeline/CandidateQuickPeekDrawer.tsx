@@ -22,6 +22,41 @@ type EvaluationState = {
   scores: { criterionId: string; criterionName: string; score: number }[];
 };
 
+function isValidResumePreviewUrl(url: string | null | undefined): boolean {
+  if (!url?.trim()) return false;
+
+  const trimmed = url.trim();
+
+  if (trimmed.startsWith("/api/candidates/")) return true;
+
+  const lower = trimmed.toLowerCase();
+  if (lower.includes("example.com")) return false;
+
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.hostname === "example.com" || parsed.hostname.endsWith(".example.com")) {
+      return false;
+    }
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function resolveResumePreviewUrl(
+  profile: CandidateProfile,
+  resumeDoc: CandidateProfile["documents"][number] | undefined,
+): string | null {
+  if (resumeDoc) {
+    return `/api/candidates/${profile.id}/documents/${resumeDoc.id}`;
+  }
+
+  const link = profile.resumeLink?.trim();
+  if (!link || !isValidResumePreviewUrl(link)) return null;
+
+  return link;
+}
+
 export function CandidateQuickPeekDrawer({
   candidateId,
   isOpen,
@@ -69,13 +104,16 @@ export function CandidateQuickPeekDrawer({
   }, [candidateId, isOpen]);
 
   const resumeDoc = useMemo(
-    () => profile?.documents.find((doc) => doc.category === "RESUME"),
+    () =>
+      profile?.documents.find((doc) => doc.category === "RESUME") ??
+      profile?.documents.find((doc) => doc.category === "PORTFOLIO"),
     [profile],
   );
 
-  const resumeUrl = resumeDoc
-    ? `/api/candidates/${profile?.id}/documents/${resumeDoc.id}`
-    : profile?.resumeLink;
+  const resumePreviewUrl = useMemo(
+    () => (profile ? resolveResumePreviewUrl(profile, resumeDoc) : null),
+    [profile, resumeDoc],
+  );
 
   if (!isOpen) return null;
 
@@ -83,6 +121,8 @@ export function CandidateQuickPeekDrawer({
     blindHiring && profile
       ? maskCandidateName(profile.name, profile.id)
       : profile?.name ?? "Candidate";
+
+  const skills = (profile as CandidateProfile & { skills?: string[] })?.skills ?? [];
 
   const saveCriteria = async () => {
     const criteria = criteriaInput
@@ -116,79 +156,131 @@ export function CandidateQuickPeekDrawer({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex justify-end bg-slate-900/30 backdrop-blur-sm"
+      onClick={onClose}
+    >
       <aside
-        className="flex h-full w-full max-w-5xl flex-col border-l border-border bg-card shadow-2xl transition-transform duration-300"
+        className="flex h-full w-full max-w-5xl flex-col border-l border-border bg-background shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <div>
-            <p className="text-xs uppercase tracking-wide text-muted">Quick Peek</p>
-            <h2 className="text-lg font-semibold text-foreground">{displayName}</h2>
+        <header className="flex shrink-0 items-start justify-between gap-4 border-b border-border bg-card px-6 py-5">
+          <div className="min-w-0 space-y-1">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted">
+              Quick Peek
+            </p>
+            <h2 className="truncate text-xl font-semibold text-foreground">{displayName}</h2>
+            {profile && (
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                  {profile.stage.name}
+                </span>
+                <span className="text-xs text-muted">{profile.job.title}</span>
+              </div>
+            )}
           </div>
           <button
             type="button"
-            className="rounded-md px-2 py-1 text-muted hover:bg-slate-100"
+            aria-label="Close quick peek"
+            className="rounded-lg p-2 text-muted transition-colors hover:bg-slate-100 hover:text-foreground"
             onClick={onClose}
           >
-            ×
+            <CloseIcon />
           </button>
-        </div>
+        </header>
 
         {isLoading ? (
           <div className="flex flex-1 items-center justify-center">
-            <Spinner className="h-6 w-6" />
+            <Spinner className="h-7 w-7" />
           </div>
         ) : error ? (
-          <div className="p-5 text-sm text-red-600">{error}</div>
+          <div className="m-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
         ) : profile ? (
-          <div className="grid flex-1 gap-4 overflow-y-auto p-5 lg:grid-cols-2">
-            <section className="space-y-3">
-              <div className="rounded-lg border border-border p-3 text-sm">
-                <p><span className="text-muted">Email:</span> {blindHiring ? "—" : profile.email ?? "—"}</p>
-                <p><span className="text-muted">Phone:</span> {blindHiring ? "—" : profile.phone ?? "—"}</p>
-                <p><span className="text-muted">Position:</span> {profile.position ?? profile.job.title}</p>
-                <p><span className="text-muted">Stage:</span> {profile.stage.name}</p>
-                {profile.skills?.length ? (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {(profile as CandidateProfile & { skills?: string[] }).skills?.map((skill) => (
-                      <span key={skill} className="rounded bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700">
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
+          <div className="grid flex-1 gap-5 overflow-y-auto p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+            <div className="space-y-5">
+              <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
+                <h3 className="text-sm font-semibold text-foreground">Contact & role</h3>
+                <dl className="mt-4 grid gap-3 text-sm">
+                  <DetailRow label="Email" value={blindHiring ? "—" : profile.email} />
+                  <DetailRow label="Phone" value={blindHiring ? "—" : profile.phone} />
+                  <DetailRow
+                    label="Position"
+                    value={profile.position ?? profile.job.title}
+                  />
+                  <DetailRow label="Stage" value={profile.stage.name} />
+                  {profile.expectedSalary != null && (
+                    <DetailRow
+                      label="Salary"
+                      value={`${profile.expectedSalary.toLocaleString()} ${profile.salaryCurrency ?? "USD"}`}
+                    />
+                  )}
+                </dl>
 
-              <div className="rounded-lg border border-border p-3">
-                <h3 className="mb-2 text-sm font-semibold">Evaluation</h3>
-                <label className={formLabelClassName}>Criteria (comma-separated)</label>
-                <input
-                  className={formControlClassName}
-                  value={criteriaInput}
-                  onChange={(e) => setCriteriaInput(e.target.value)}
-                />
-                <Button type="button" size="sm" className="mt-2" onClick={() => void saveCriteria()}>
-                  Save Criteria
-                </Button>
+                {skills.length > 0 && (
+                  <div className="mt-5 border-t border-border pt-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                      Skills
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {skills.map((skill) => (
+                        <span
+                          key={skill}
+                          className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700 ring-1 ring-indigo-100"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </section>
+
+              <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-semibold text-foreground">Evaluation</h3>
+                  {evaluation?.average != null && (
+                    <span className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700 ring-1 ring-violet-100">
+                      ★ {evaluation.average.toFixed(1)} / 5
+                    </span>
+                  )}
+                </div>
+
+                <div className="mt-4 space-y-2">
+                  <label className={formLabelClassName}>Criteria (comma-separated)</label>
+                  <input
+                    className={formControlClassName}
+                    value={criteriaInput}
+                    onChange={(e) => setCriteriaInput(e.target.value)}
+                    placeholder="Architecture, Communication, Docker"
+                  />
+                  <Button type="button" size="sm" variant="outline" onClick={() => void saveCriteria()}>
+                    Save criteria
+                  </Button>
+                </div>
 
                 {evaluation?.criteria?.length ? (
-                  <div className="mt-3 space-y-2">
+                  <div className="mt-5 space-y-3 border-t border-border pt-4">
                     {evaluation.criteria.map((criterion) => (
-                      <div key={criterion.id} className="flex items-center justify-between gap-2 text-xs">
-                        <span>{criterion.name}</span>
+                      <div
+                        key={criterion.id}
+                        className="flex items-center justify-between gap-3 rounded-lg bg-slate-50/80 px-3 py-2.5"
+                      >
+                        <span className="text-sm font-medium text-foreground">{criterion.name}</span>
                         <div className="flex gap-1">
                           {[1, 2, 3, 4, 5].map((value) => (
                             <button
                               key={value}
                               type="button"
+                              aria-label={`Rate ${criterion.name} ${value} out of 5`}
                               onClick={() =>
                                 setScoreDraft((current) => ({ ...current, [criterion.id]: value }))
                               }
-                              className={`h-6 w-6 rounded text-[10px] ${
+                              className={`h-7 w-7 rounded-md text-xs font-semibold transition-colors ${
                                 (scoreDraft[criterion.id] ?? 0) >= value
-                                  ? "bg-amber-400 text-white"
-                                  : "bg-slate-100 text-muted"
+                                  ? "bg-amber-400 text-white shadow-sm"
+                                  : "bg-white text-muted ring-1 ring-border hover:bg-amber-50"
                               }`}
                             >
                               {value}
@@ -198,28 +290,80 @@ export function CandidateQuickPeekDrawer({
                       </div>
                     ))}
                     <Button type="button" size="sm" onClick={() => void saveScores()}>
-                      Save Scores
+                      Save scores
                     </Button>
-                    {evaluation.average != null && (
-                      <p className="text-xs text-muted">Average: {evaluation.average.toFixed(1)}/5</p>
-                    )}
                   </div>
-                ) : null}
-              </div>
-            </section>
+                ) : (
+                  <p className="mt-4 text-xs text-muted">
+                    Add criteria above to start scoring this candidate.
+                  </p>
+                )}
+              </section>
+            </div>
 
-            <section className="min-h-[28rem] rounded-lg border border-border">
-              {resumeUrl ? (
-                <iframe title="Resume preview" src={resumeUrl} className="h-full min-h-[28rem] w-full rounded-lg" />
+            <section className="flex min-h-[28rem] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+              <div className="border-b border-border px-4 py-3">
+                <h3 className="text-sm font-semibold text-foreground">Resume preview</h3>
+                {resumeDoc && (
+                  <p className="mt-0.5 truncate text-xs text-muted">{resumeDoc.title}</p>
+                )}
+              </div>
+
+              {resumePreviewUrl ? (
+                <iframe
+                  title="Resume preview"
+                  src={resumePreviewUrl}
+                  className="min-h-0 flex-1 w-full bg-white"
+                />
               ) : (
-                <div className="flex h-full min-h-[28rem] items-center justify-center text-sm text-muted">
-                  No resume available
-                </div>
+                <ResumePlaceholder />
               )}
             </section>
           </div>
         ) : null}
       </aside>
     </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string | null | undefined }) {
+  return (
+    <div className="grid grid-cols-[5.5rem_1fr] gap-2">
+      <dt className="text-muted">{label}</dt>
+      <dd className="font-medium text-foreground">{value?.trim() ? value : "—"}</dd>
+    </div>
+  );
+}
+
+function ResumePlaceholder() {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-gradient-to-b from-slate-50 to-white px-6 py-12 text-center">
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 ring-1 ring-border">
+        <DocumentIcon />
+      </div>
+      <div className="space-y-1">
+        <p className="text-sm font-semibold text-foreground">No valid resume attached</p>
+        <p className="max-w-xs text-xs leading-relaxed text-muted">
+          Upload a PDF resume or add a valid portfolio link to preview it here.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M18 6 6 18M6 6l12 12" />
+    </svg>
+  );
+}
+
+function DocumentIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
+    </svg>
   );
 }
