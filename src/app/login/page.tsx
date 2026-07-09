@@ -36,9 +36,10 @@ function LoginContent() {
         </div>
       )}
 
-      {(error === "OAuthCallback" ||
-        error === "Configuration" ||
-        error === "OAuthSignin") && (
+      {process.env.NODE_ENV === "development" &&
+        (error === "OAuthCallback" ||
+          error === "Configuration" ||
+          error === "OAuthSignin") && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           Помилка OAuth. Перевірте у файлі <code>.env</code>:{" "}
           <strong>GOOGLE_CLIENT_ID</strong>, <strong>GOOGLE_CLIENT_SECRET</strong>,{" "}
