@@ -6,6 +6,7 @@ import { CandidatesBySourceChart } from "@/components/analytics/CandidatesBySour
 import { CompensationDistributionChart } from "@/components/analytics/CompensationDistributionChart";
 import { RecruitmentFunnelChart } from "@/components/analytics/RecruitmentFunnelChart";
 import { RecruitingSummaryMetrics } from "@/components/analytics/RecruitingSummaryMetrics";
+import { TimeToHireDashboard } from "@/components/analytics/TimeToHireDashboard";
 import {
   AnalyticsSidebarCharts,
 } from "@/components/analytics/RecruitingSidebarCharts";
@@ -13,6 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { formControlClassName } from "@/components/ui/formStyles";
 import { api } from "@/lib/api/client";
+import { isAnalyticsEnabled } from "@/lib/feature-flags";
 
 type PeriodPreset = "7d" | "30d" | "90d" | "custom";
 
@@ -249,6 +251,14 @@ export function RecruitingAnalyticsView() {
                     <CompensationDistributionChart compensation={data.compensation} />
                   </div>
                 </section>
+
+                {isAnalyticsEnabled && (
+                  <TimeToHireDashboard
+                    from={fromDate}
+                    to={toDate}
+                    jobId={jobId || undefined}
+                  />
+                )}
               </div>
 
               <AnalyticsSidebarCharts

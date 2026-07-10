@@ -21,6 +21,8 @@ import { getSourceLabel } from "@/lib/application-sources";
 import { maskCandidateName } from "@/lib/blind-hiring";
 import { api } from "@/lib/api/client";
 import type { ApplicationSource } from "@prisma/client";
+import { CandidateContextualHelp } from "@/components/faq/CandidateContextualHelp";
+import { isContextualFaqEnabled } from "@/lib/feature-flags";
 
 type CandidateProfileViewProps = {
   profile: CandidateProfile;
@@ -187,6 +189,9 @@ export function CandidateProfileView({
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
+            {isContextualFaqEnabled && (
+              <CandidateContextualHelp stageName={profile.stage.name} />
+            )}
             {!isDrawer && (
               <>
                 <button

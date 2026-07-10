@@ -28,6 +28,7 @@ import type {
   StageWithCount,
   SendCandidateEmailInput,
   TestAssignmentTemplate,
+  TimeToHireAnalyticsResponse,
   UpdateCandidateInput,
   UpdateEmailTemplateInput,
   UpdateJobInput,
@@ -320,6 +321,16 @@ export const api = {
       if (jobId) params.set("jobId", jobId);
       return request<RecruitingAnalyticsResponse>(
         `/api/recruiting/analytics?${params.toString()}`,
+      );
+    },
+  },
+
+  timeToHireAnalytics: {
+    get: (from: string, to: string, jobId?: string) => {
+      const params = new URLSearchParams({ from, to });
+      if (jobId) params.set("jobId", jobId);
+      return request<TimeToHireAnalyticsResponse>(
+        `/api/analytics/time-to-hire?${params.toString()}`,
       );
     },
   },

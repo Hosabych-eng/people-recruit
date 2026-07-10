@@ -433,3 +433,29 @@ export type CreateKnowledgeArticleInput = {
   title: string;
   content: string;
 };
+
+export type TimeToHireAnalyticsResponse = {
+  period: { from: string; to: string };
+  disclaimer: string;
+  summary: {
+    avgTimeToHireDays: number | null;
+    medianTimeToHireDays: number | null;
+    hiredInPeriod: number;
+    activeCandidates: number;
+  };
+  stageDwell: Array<{
+    stage: string;
+    orderInPipeline: number;
+    candidateCount: number;
+    avgDaysInCurrentStage: number;
+    avgDaysInPipeline: number;
+    avgDaysFromHistory: number | null;
+  }>;
+  hiresByMonth: Array<{ month: string; count: number }>;
+  recentHires: Array<{
+    candidateId: string;
+    candidateName: string;
+    daysToHire: number;
+    hiredAt: string;
+  }>;
+};
