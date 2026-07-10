@@ -100,6 +100,18 @@ export function SettingsDashboard() {
             {activeTab === "general" && (
               <Panel title="Загальні налаштування">
                 <div className="space-y-4">
+                  <div className="rounded-lg border border-border bg-slate-50/80 p-3">
+                    <h3 className="text-xs font-semibold text-foreground">LinkedIn Parser</h3>
+                    <p className="mt-1 text-xs text-muted">
+                      Завантажте розширення Chrome та перегляньте інструкцію з встановлення.
+                    </p>
+                    <a
+                      href="/settings/parser"
+                      className="mt-3 inline-flex h-8 items-center justify-center rounded-lg border border-border bg-card px-3 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-slate-50"
+                    >
+                      Відкрити сторінку парсера
+                    </a>
+                  </div>
                   <div>
                     <h3 className="mb-2 text-xs font-semibold text-foreground">
                       Шаблони інтерв&apos;ю

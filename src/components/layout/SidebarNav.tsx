@@ -8,8 +8,6 @@ import { knowledgeNavItem } from "@/lib/knowledge-nav";
 import { candidatesNavItem } from "@/lib/candidates-nav";
 import { testAssignmentsNavItem } from "@/lib/test-assignments-nav";
 
-const EXTENSION_DOWNLOAD_URL = "/people-recruit-linkedin-parser.zip";
-
 const baseNavItems = [
   {
     href: "/recruiting",
@@ -143,8 +141,7 @@ export function SidebarNav() {
             Інструменти
           </p>
           <a
-            href={EXTENSION_DOWNLOAD_URL}
-            download="people-recruit-linkedin-parser.zip"
+            href="/settings/parser"
             className="flex items-start gap-3 rounded-xl px-3 py-3 text-sidebar-muted transition-colors hover:bg-sidebar-hover hover:text-white"
           >
             <span className="mt-0.5 shrink-0">
