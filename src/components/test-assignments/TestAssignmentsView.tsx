@@ -84,7 +84,7 @@ export function TestAssignmentsView() {
           Тестові завдання
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-muted">
-          Завантажуйте шаблони тестових завдань (PDF, DOC, DOCX) і надсилайте їх кандидатам із профілю.
+          Завантажуйте шаблони тестових завдань (PDF, DOC, DOCX, TXT, Excel, CSV, ZIP) і надсилайте їх кандидатам із профілю.
         </p>
       </header>
 
@@ -151,7 +151,9 @@ export function TestAssignmentsView() {
 
         <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
           <h2 className="text-base font-semibold text-foreground">Новий шаблон</h2>
-          <p className="mt-1 text-sm text-muted">PDF або DOC/DOCX</p>
+          <p className="mt-1 text-sm text-muted">
+            PDF, DOC/DOCX, TXT, XLSX/XLS, CSV, ZIP
+          </p>
 
           <form onSubmit={handleSubmit} className="mt-4 space-y-4">
             <div className="space-y-2">
@@ -190,7 +192,7 @@ export function TestAssignmentsView() {
                 id="template-file"
                 type="file"
                 required
-                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                accept=".pdf,.doc,.docx,.txt,.xlsx,.xls,.csv,.zip,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,application/zip"
                 onChange={(event) => setFile(event.target.files?.[0] ?? null)}
                 className={formControlClassName}
               />

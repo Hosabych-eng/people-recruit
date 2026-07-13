@@ -37,7 +37,7 @@ export async function POST(request: Request) {
       throw new ApiError(400, "Потрібно завантажити файл шаблону");
     }
 
-    assertTemplateMimeType(file.type || "application/octet-stream");
+    assertTemplateMimeType(file.type || "application/octet-stream", file.name);
     const saved = await saveUploadedFile("test-templates", file);
 
     const template = await prisma.testAssignmentTemplate.create({

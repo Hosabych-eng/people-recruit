@@ -12,10 +12,45 @@ import {
 
 const STORAGE_ROOT = path.join(process.cwd(), "storage", "uploads");
 
+const ALLOWED_TEMPLATE_EXTENSIONS = new Set([
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".txt",
+  ".xlsx",
+  ".xls",
+  ".csv",
+  ".zip",
+]);
+
 const ALLOWED_TEMPLATE_MIME_TYPES = new Set([
   "application/pdf",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "text/plain",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
+  "text/csv",
+  "application/csv",
+  "application/zip",
+  "application/x-zip-compressed",
+  "multipart/x-zip",
+]);
+
+/** Always rejected — even if MIME is spoofed as an allowed type. */
+const BLOCKED_EXECUTABLE_EXTENSIONS = new Set([
+  ".exe",
+  ".sh",
+  ".bat",
+  ".js",
+  ".mjs",
+  ".cjs",
+  ".cmd",
+  ".com",
+  ".msi",
+  ".ps1",
+  ".vbs",
+  ".jar",
 ]);
 
 const ALLOWED_DOCUMENT_MIME_TYPES = new Set([
@@ -23,7 +58,6 @@ const ALLOWED_DOCUMENT_MIME_TYPES = new Set([
   "image/png",
   "image/jpeg",
   "image/webp",
-  "text/plain",
 ]);
 
 export type SavedFile = {
@@ -35,6 +69,21 @@ export type SavedFile = {
 
 function sanitizeFileName(fileName: string) {
   return fileName.replace(/[^\w.\-() ]+/g, "_").trim() || "file";
+}
+
+function normalizeExtension(fileName: string) {
+  return path.extname(fileName).toLowerCase();
+}
+
+function normalizeMimeType(mimeType: string) {
+  return mimeType.toLowerCase().split(";")[0]?.trim() || "";
+}
+
+/** True if any suffix segment is a blocked executable (e.g. report.pdf.exe). */
+function hasBlockedExecutableSuffix(fileName: string) {
+  const parts = fileName.toLowerCase().split(".");
+  if (parts.length < 2) return false;
+  return parts.slice(1).some((part) => BLOCKED_EXECUTABLE_EXTENSIONS.has(`.${part}`));
 }
 
 async function ensureDirectory(dirPath: string) {
@@ -57,9 +106,42 @@ function buildObjectPath(
     : `${category}/${storedName}`;
 }
 
-export function assertTemplateMimeType(mimeType: string) {
-  if (!ALLOWED_TEMPLATE_MIME_TYPES.has(mimeType)) {
-    throw new Error("Дозволені лише файли PDF або DOC/DOCX");
+export function assertTemplateMimeType(mimeType: string, fileName?: string) {
+  const extension = fileName ? normalizeExtension(fileName) : "";
+  const normalizedMime = normalizeMimeType(mimeType);
+
+  if (
+    (extension && BLOCKED_EXECUTABLE_EXTENSIONS.has(extension)) ||
+    (fileName && hasBlockedExecutableSuffix(fileName))
+  ) {
+    throw new Error("Заборонений тип файлу (виконувані файли не дозволені)");
+  }
+
+  if (extension && !ALLOWED_TEMPLATE_EXTENSIONS.has(extension)) {
+    throw new Error(
+      "Дозволені формати: PDF, DOC, DOCX, TXT, XLSX, XLS, CSV, ZIP",
+    );
+  }
+
+  const mimeAllowed =
+    !normalizedMime ||
+    normalizedMime === "application/octet-stream" ||
+    ALLOWED_TEMPLATE_MIME_TYPES.has(normalizedMime);
+
+  if (!mimeAllowed) {
+    throw new Error(
+      "Дозволені формати: PDF, DOC, DOCX, TXT, XLSX, XLS, CSV, ZIP",
+    );
+  }
+
+  // Extension required when MIME is empty/generic so .exe cannot slip through.
+  if (
+    (!normalizedMime || normalizedMime === "application/octet-stream") &&
+    !extension
+  ) {
+    throw new Error(
+      "Дозволені формати: PDF, DOC, DOCX, TXT, XLSX, XLS, CSV, ZIP",
+    );
   }
 }
 
