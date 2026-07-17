@@ -1,3 +1,5 @@
+import type { JobStatus } from "@prisma/client";
+
 export type PublicJobPosting = {
   id: string;
   title: string;
@@ -7,7 +9,7 @@ export type PublicJobPosting = {
   weOffer: string[];
   location: string;
   employmentType: string;
-  status: "OPEN" | "DRAFT" | "CLOSED";
+  status: JobStatus;
 };
 
 export function parseBulletLines(value: string | null | undefined): string[] {
@@ -28,7 +30,7 @@ export function toPublicJobPosting(job: {
   weOffer: string | null;
   location: string | null;
   employmentType: string | null;
-  status: "OPEN" | "DRAFT" | "CLOSED";
+  status: JobStatus;
 }): PublicJobPosting {
   return {
     id: job.id,

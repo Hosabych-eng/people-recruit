@@ -44,16 +44,28 @@ export async function GET(_request: Request, context: RouteContext) {
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    await requireAdminUser();
+    const session = await requireSessionUser();
     const { id } = await context.params;
-    await getJobOrThrow(id);
+    await getJobOrThrow(id, session);
 
     const body = await parseJsonBody<Record<string, unknown>>(request);
     const updates = parseUpdateJobBody(body);
 
+    const updateKeys = Object.keys(updates);
+    const isStatusOnly = updateKeys.length === 1 && updateKeys[0] === "status";
+    if (!isStatusOnly && session.role !== "ADMIN") {
+      throw new ApiError(
+        403,
+        "Only admins can update vacancy fields other than status",
+      );
+    }
+
     const job = await prisma.job.update({
       where: { id },
-      data: updates,
+      data: {
+        ...updates,
+        ...(updates.status === "OPEN" ? { openedAt: new Date() } : {}),
+      },
       include: {
         stages: {
           orderBy: { orderInPipeline: "asc" },

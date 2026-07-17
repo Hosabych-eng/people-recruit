@@ -75,7 +75,11 @@ export function serializeCandidateProfile(
     isNew: candidate.isNew,
     createdAt: candidate.createdAt.toISOString(),
     stage: { id: candidate.stage.id, name: candidate.stage.name },
-    job: { id: candidate.job.id, title: candidate.job.title },
+    job: {
+      id: candidate.job.id,
+      title: candidate.job.title,
+      status: candidate.job.status,
+    },
     tags: candidate.tagAssignments.map((row) => ({
       id: row.tag.id,
       name: row.tag.name,

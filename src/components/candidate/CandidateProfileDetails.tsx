@@ -2,6 +2,7 @@
 
 import type { CandidateProfile } from "@/types";
 import { Button } from "@/components/ui/Button";
+import { getJobStatusLabel } from "@/components/ui/Badge";
 
 type CandidateProfileDetailsProps = {
   profile: CandidateProfile;
@@ -62,6 +63,7 @@ export function CandidateProfileDetails({
           href={profile.resumeLink ?? undefined}
         />
         <DetailRow label="Вакансія" value={profile.job.title} />
+        <DetailRow label="Статус вакансії" value={getJobStatusLabel(profile.job.status)} />
         <DetailRow label="Статус" value={profile.stage.name} />
       </dl>
     </aside>

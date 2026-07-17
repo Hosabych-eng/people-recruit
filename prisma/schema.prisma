@@ -12,8 +12,12 @@ datasource db {
 
 enum JobStatus {
   DRAFT
+  IN_REVIEW
   OPEN
+  PAUSED
+  CANCELLED
   CLOSED
+  ARCHIVED
 }
 
 enum WorkforceEventType {

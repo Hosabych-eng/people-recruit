@@ -26,7 +26,7 @@ export const candidateProfileSelect = {
   firstContactDate: true,
   lastContactDate: true,
   stage: { select: { id: true, name: true } },
-  job: { select: { id: true, title: true } },
+  job: { select: { id: true, title: true, status: true } },
   recruiter: { select: { id: true, name: true, email: true, image: true } },
   tagAssignments: {
     select: {

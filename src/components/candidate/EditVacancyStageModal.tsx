@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import type { JobStatus } from "@prisma/client";
 import type { CandidateProfile } from "@/types";
 import { RejectionReasonModal } from "@/components/candidate/RejectionReasonModal";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { formControlClassName, formLabelClassName } from "@/components/ui/formStyles";
+import { JOB_STATUS_OPTIONS } from "@/lib/job-status";
 import { isRejectedStageName } from "@/lib/pipeline-utils";
 import { api } from "@/lib/api/client";
 
@@ -16,15 +18,9 @@ type EditVacancyStageModalProps = {
   onSuccess: (profile: CandidateProfile) => void;
 };
 
-type JobOption = {
-  id: string;
-  title: string;
-  stages: { id: string; name: string }[];
-};
-
 /**
- * Targeted modal: vacancy + pipeline stage only.
- * Does not open profile/metadata/template flows.
+ * Current vacancy context only: job status + pipeline stage.
+ * Does not switch jobs / navigate away.
  */
 export function EditVacancyStageModal({
   profile,
@@ -32,8 +28,10 @@ export function EditVacancyStageModal({
   onClose,
   onSuccess,
 }: EditVacancyStageModalProps) {
-  const [jobs, setJobs] = useState<JobOption[]>([]);
-  const [jobId, setJobId] = useState(profile.job.id);
+  const [stages, setStages] = useState<{ id: string; name: string }[]>([
+    profile.stage,
+  ]);
+  const [jobStatus, setJobStatus] = useState<JobStatus>(profile.job.status);
   const [stageId, setStageId] = useState(profile.stage.id);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,7 +40,7 @@ export function EditVacancyStageModal({
 
   useEffect(() => {
     if (!isOpen) return;
-    setJobId(profile.job.id);
+    setJobStatus(profile.job.status);
     setStageId(profile.stage.id);
     setError(null);
     setIsSubmitting(false);
@@ -50,47 +48,20 @@ export function EditVacancyStageModal({
     setIsLoading(true);
 
     void api.jobs
-      .list()
-      .then(async (data) => {
-        const mapped: JobOption[] = await Promise.all(
-          data.map(async (job) => {
-            let stages = (job.stages ?? []).map((stage) => ({
-              id: stage.id,
-              name: stage.name,
-            }));
-            if (stages.length === 0) {
-              try {
-                const pipeline = await api.jobs.pipeline(job.id);
-                stages = pipeline.stages.map((stage) => ({
-                  id: stage.id,
-                  name: stage.name,
-                }));
-              } catch {
-                stages = [];
-              }
-            }
-            return { id: job.id, title: job.title, stages };
-          }),
+      .pipeline(profile.job.id)
+      .then((pipeline) => {
+        setStages(
+          pipeline.stages.map((stage) => ({ id: stage.id, name: stage.name })),
         );
-        setJobs(mapped);
+        if (pipeline.status) {
+          setJobStatus(pipeline.status);
+        }
       })
-      .catch((err) =>
-        setError(err instanceof Error ? err.message : "Не вдалося завантажити вакансії"),
-      )
+      .catch(() => {
+        setStages([profile.stage]);
+      })
       .finally(() => setIsLoading(false));
-  }, [isOpen, profile.job.id, profile.stage.id]);
-
-  const stages = useMemo(
-    () => jobs.find((job) => job.id === jobId)?.stages ?? [profile.stage],
-    [jobId, jobs, profile.stage],
-  );
-
-  useEffect(() => {
-    if (!isOpen || stages.length === 0) return;
-    if (!stages.some((stage) => stage.id === stageId)) {
-      setStageId(stages[0].id);
-    }
-  }, [isOpen, stageId, stages]);
+  }, [isOpen, profile.job.id, profile.job.status, profile.stage]);
 
   if (!isOpen) return null;
 
@@ -103,28 +74,12 @@ export function EditVacancyStageModal({
     setError(null);
 
     try {
-      const jobChanged = jobId !== profile.job.id;
+      if (jobStatus !== profile.job.status) {
+        await api.jobs.update(profile.job.id, { status: jobStatus });
+      }
 
-      if (jobChanged) {
-        const response = await fetch(`/api/candidates/${profile.id}/applications`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ jobId, stageId }),
-        });
-        const payload = await response.json();
-        if (!response.ok) {
-          throw new Error(payload.error ?? "Не вдалося оновити вакансію");
-        }
-
-        await api.candidates.update(profile.id, {
-          jobId,
-          stageId,
-          ...rejection,
-        });
-      } else if (stageId !== profile.stage.id) {
+      if (stageId !== profile.stage.id) {
         await api.candidates.updateStage(profile.id, stageId, rejection);
-      } else {
-        // No-op save — still refresh so UI stays in sync.
       }
 
       const refreshed = await api.candidates.profile(profile.id);
@@ -166,11 +121,12 @@ export function EditVacancyStageModal({
         >
           <div className="border-b border-border px-6 py-4">
             <p className="text-xs font-medium uppercase tracking-wider text-muted">
-              Вакансія та етап
+              Статус вакансії та етап
             </p>
             <h2 id="edit-vacancy-title" className="text-lg font-semibold text-foreground">
-              {profile.name}
+              {profile.job.title}
             </h2>
+            <p className="mt-1 text-sm text-muted">{profile.name}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
@@ -182,18 +138,18 @@ export function EditVacancyStageModal({
             ) : (
               <>
                 <div className="space-y-2">
-                  <label htmlFor="edit-vacancy-job" className={formLabelClassName}>
-                    Вакансія
+                  <label htmlFor="edit-vacancy-status" className={formLabelClassName}>
+                    Статус вакансії
                   </label>
                   <select
-                    id="edit-vacancy-job"
+                    id="edit-vacancy-status"
                     className={formControlClassName}
-                    value={jobId}
-                    onChange={(event) => setJobId(event.target.value)}
+                    value={jobStatus}
+                    onChange={(event) => setJobStatus(event.target.value as JobStatus)}
                   >
-                    {jobs.map((job) => (
-                      <option key={job.id} value={job.id}>
-                        {job.title}
+                    {JOB_STATUS_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
                       </option>
                     ))}
                   </select>
@@ -201,7 +157,7 @@ export function EditVacancyStageModal({
 
                 <div className="space-y-2">
                   <label htmlFor="edit-vacancy-stage" className={formLabelClassName}>
-                    Етап воронки
+                    Етап кандидата
                   </label>
                   <select
                     id="edit-vacancy-stage"

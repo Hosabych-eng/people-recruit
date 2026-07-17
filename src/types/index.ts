@@ -309,7 +309,7 @@ export type CandidateProfile = {
   recruiterId: string | null;
   recruiter: { id: string; name: string | null; email: string | null; image: string | null } | null;
   stage: { id: string; name: string };
-  job: { id: string; title: string };
+  job: { id: string; title: string; status: JobStatus };
   tags: CandidateTag[];
   applications: CandidateApplication[];
   notes: CandidateNote[];
