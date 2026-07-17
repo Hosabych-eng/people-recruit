@@ -19,7 +19,6 @@ type FormState = {
   email: string;
   phone: string;
   resumeLink: string;
-  stageId: string;
   isNew: boolean;
 };
 
@@ -29,7 +28,6 @@ function buildFormState(profile: CandidateProfile): FormState {
     email: profile.email ?? "",
     phone: profile.phone ?? "",
     resumeLink: profile.resumeLink ?? "",
-    stageId: profile.stage.id,
     isNew: profile.isNew,
   };
 }
@@ -41,10 +39,6 @@ export function EditCandidateModal({
   onSuccess,
 }: EditCandidateModalProps) {
   const [form, setForm] = useState<FormState>(() => buildFormState(profile));
-  const [stages, setStages] = useState<{ id: string; name: string }[]>([
-    profile.stage,
-  ]);
-  const [isLoadingStages, setIsLoadingStages] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,21 +48,6 @@ export function EditCandidateModal({
     setForm(buildFormState(profile));
     setError(null);
     setIsSubmitting(false);
-    setIsLoadingStages(true);
-
-    void api.jobs
-      .pipeline(profile.job.id)
-      .then((pipeline) => {
-        setStages(
-          pipeline.stages.map((stage) => ({ id: stage.id, name: stage.name })),
-        );
-      })
-      .catch(() => {
-        setStages([profile.stage]);
-      })
-      .finally(() => {
-        setIsLoadingStages(false);
-      });
   }, [isOpen, profile]);
 
   if (!isOpen) return null;
@@ -87,7 +66,6 @@ export function EditCandidateModal({
       email: form.email.trim() || null,
       phone: form.phone.trim() || null,
       resumeLink: form.resumeLink.trim() || null,
-      stageId: form.stageId,
       isNew: form.isNew,
     };
 
@@ -186,26 +164,6 @@ export function EditCandidateModal({
             />
           </div>
 
-          <div className="space-y-2">
-            <label htmlFor="edit-candidate-stage" className={formLabelClassName}>
-              Статус у воронці <span className="text-red-500">*</span>
-            </label>
-            <select
-              id="edit-candidate-stage"
-              required
-              disabled={isLoadingStages}
-              value={form.stageId}
-              onChange={(event) => updateField("stageId", event.target.value)}
-              className={formControlClassName}
-            >
-              {stages.map((stage) => (
-                <option key={stage.id} value={stage.id}>
-                  {stage.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
           <label className="flex items-center gap-2 text-sm text-foreground">
             <input
               type="checkbox"
@@ -226,7 +184,7 @@ export function EditCandidateModal({
             <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
               Скасувати
             </Button>
-            <Button type="submit" disabled={isSubmitting || !form.stageId}>
+            <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? (
                 <span className="inline-flex items-center gap-2">
                   <Spinner className="h-4 w-4" />

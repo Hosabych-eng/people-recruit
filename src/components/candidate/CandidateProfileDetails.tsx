@@ -49,7 +49,7 @@ export function CandidateProfileDetails({
       <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
         <h2 className="text-base font-semibold text-foreground">Профіль</h2>
         <Button type="button" variant="outline" className="h-8 px-3 text-xs" onClick={onEdit}>
-          Редагувати
+          Вакансія / етап
         </Button>
       </div>
 

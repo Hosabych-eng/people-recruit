@@ -133,6 +133,7 @@ export function parseUpdateCandidateBody(body: Record<string, unknown>) {
     expectedSalary?: number | null;
     salaryCurrency?: string | null;
     stageId?: string;
+    jobId?: string;
     isNew?: boolean;
     score?: number | null;
     englishLevel?: string | null;
@@ -189,6 +190,7 @@ export function parseUpdateCandidateBody(body: Record<string, unknown>) {
     updates.score = score;
   }
   if ("stageId" in body) updates.stageId = requireString(body.stageId, "stageId");
+  if ("jobId" in body) updates.jobId = requireString(body.jobId, "jobId");
   if ("position" in body) {
     updates.position =
       body.position === null ? null : optionalString(body.position) ?? null;

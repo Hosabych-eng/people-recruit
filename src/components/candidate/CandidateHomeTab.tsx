@@ -93,8 +93,6 @@ export function CandidateHomeTab({
   onNotesChange,
   blindHiring = false,
 }: CandidateHomeTabProps) {
-  const [score, setScore] = useState(profile.score ?? 0);
-  const [isSavingScore, setIsSavingScore] = useState(false);
   const [fieldSchema, setFieldSchema] = useState<CandidateFieldSchemaItem[]>([]);
   const [isEditOpen, setIsEditOpen] = useState(false);
 
@@ -109,10 +107,6 @@ export function CandidateHomeTab({
     resumeLink: profile.resumeLink,
   });
   const showResumeSection = Boolean(resumeViewerUrl || hasPdfResume);
-
-  useEffect(() => {
-    setScore(profile.score ?? 0);
-  }, [profile.score]);
 
   useEffect(() => {
     void fetch("/api/candidate-fields")
@@ -139,16 +133,6 @@ export function CandidateHomeTab({
       position: "position" in patch ? (patch.position ?? null) : profile.position,
       name: "name" in patch && patch.name ? patch.name : profile.name,
     });
-  };
-
-  const handleScoreSave = async () => {
-    setIsSavingScore(true);
-    try {
-      const updated = await api.candidates.update(profile.id, { score });
-      onProfileChange({ ...profile, score: updated.score ?? score });
-    } finally {
-      setIsSavingScore(false);
-    }
   };
 
   const renderFieldValue = (field: CandidateFieldSchemaItem) => {
@@ -216,34 +200,6 @@ export function CandidateHomeTab({
             .map((field) => (
               <MetaRow key={field.id} label={field.label} value={renderFieldValue(field)} />
             ))}
-          <div className="flex items-center justify-between border-b border-border/40 py-1.5 text-xs last:border-0">
-            <span className="w-24 shrink-0 font-medium text-muted">Оцінка</span>
-            <div className="flex flex-1 flex-wrap items-center gap-1">
-              {[1, 2, 3, 4, 5].map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setScore(value)}
-                  className={`h-6 w-6 rounded text-[11px] font-semibold ${
-                    score >= value ? "bg-amber-400 text-white" : "bg-slate-100 text-muted"
-                  }`}
-                >
-                  {value}
-                </button>
-              ))}
-              <Button
-                type="button"
-                size="sm"
-                disabled={isSavingScore}
-                onClick={() => void handleScoreSave()}
-              >
-                Зберегти
-              </Button>
-              <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">
-                {score}/5
-              </span>
-            </div>
-          </div>
         </MetaBlock>
 
         <MetaBlock title="Контакти">

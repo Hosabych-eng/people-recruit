@@ -91,6 +91,7 @@ export type UpdateCandidateInput = Partial<{
   expectedSalary: number | null;
   salaryCurrency: string | null;
   stageId: string;
+  jobId: string;
   isNew: boolean;
   score: number | null;
   englishLevel: string | null;

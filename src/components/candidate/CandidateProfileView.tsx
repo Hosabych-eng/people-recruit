@@ -16,6 +16,7 @@ import { CandidateAvatar } from "@/components/ui/CandidateAvatar";
 import { PROFILE_TABS, type CandidateProfileTab } from "@/lib/candidate-profile";
 import { CandidateProfileDetails } from "@/components/candidate/CandidateProfileDetails";
 import { EditCandidateModal } from "@/components/candidate/EditCandidateModal";
+import { EditVacancyStageModal } from "@/components/candidate/EditVacancyStageModal";
 import { Toast } from "@/components/ui/Toast";
 import { getSourceLabel } from "@/lib/application-sources";
 import { maskCandidateName } from "@/lib/blind-hiring";
@@ -61,6 +62,7 @@ export function CandidateProfileView({
   const isDrawer = variant === "drawer";
   const [activeTab, setActiveTab] = useState<CandidateProfileTab>("home");
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isVacancyEditOpen, setIsVacancyEditOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [neighbors, setNeighbors] = useState<{
     prevId: string | null;
@@ -371,7 +373,7 @@ export function CandidateProfileView({
         <aside className="flex flex-col gap-4">
           <CandidateProfileDetails
             profile={profile}
-            onEdit={() => setIsEditOpen(true)}
+            onEdit={() => setIsVacancyEditOpen(true)}
           />
         </aside>
         )}
@@ -381,6 +383,13 @@ export function CandidateProfileView({
         profile={profile}
         isOpen={isEditOpen}
         onClose={() => setIsEditOpen(false)}
+        onSuccess={handleProfileSaveSuccess}
+      />
+
+      <EditVacancyStageModal
+        profile={profile}
+        isOpen={isVacancyEditOpen}
+        onClose={() => setIsVacancyEditOpen(false)}
         onSuccess={handleProfileSaveSuccess}
       />
 

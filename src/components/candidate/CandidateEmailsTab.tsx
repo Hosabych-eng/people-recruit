@@ -61,6 +61,7 @@ export function CandidateEmailsTab({
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+  const [isEmailDirty, setIsEmailDirty] = useState(false);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,32 +91,37 @@ export function CandidateEmailsTab({
       .list()
       .then((data) => {
         setTemplates(data);
-        const first = data[0];
-        if (first) {
-          setSelectedTemplateId(first.id);
-          setSubject(compileEmailTemplate(first.subject, templateContext));
-          setBody(compileEmailTemplate(first.body, templateContext));
+        // Do not auto-overwrite subject/body if user already typed.
+        if (!isEmailDirty && !subject.trim() && !body.trim() && data[0]) {
+          setSelectedTemplateId(data[0].id);
+          setSubject(compileEmailTemplate(data[0].subject, templateContext));
+          setBody(compileEmailTemplate(data[0].body, templateContext));
         }
       })
       .catch((err) => {
         setError(err instanceof Error ? err.message : "Не вдалося завантажити шаблони");
       })
       .finally(() => setIsLoadingTemplates(false));
-  }, [isComposing, candidateName, jobTitle, recruiterName]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once when compose opens
+  }, [isComposing]);
 
   const handleTemplateChange = (templateId: string) => {
     setSelectedTemplateId(templateId);
+    if (!templateId) return;
     const template = templates.find((item) => item.id === templateId);
     if (!template) return;
 
     setSubject(compileEmailTemplate(template.subject, templateContext));
     setBody(compileEmailTemplate(template.body, templateContext));
+    setIsEmailDirty(false);
   };
 
   const handleStartCompose = () => {
     setIsComposing(true);
+    setSelectedTemplateId("");
     setSubject("");
     setBody("");
+    setIsEmailDirty(false);
     setError(null);
   };
 
@@ -124,6 +130,7 @@ export function CandidateEmailsTab({
     setSelectedTemplateId("");
     setSubject("");
     setBody("");
+    setIsEmailDirty(false);
     setError(null);
   };
 
@@ -178,17 +185,13 @@ export function CandidateEmailsTab({
 
           <div className="space-y-2">
             <label htmlFor="email-template" className={formLabelClassName}>
-              Шаблон
+              Шаблон (опційно)
             </label>
             {isLoadingTemplates ? (
               <div className="flex items-center gap-2 text-sm text-muted">
                 <Spinner className="h-4 w-4" />
                 Завантаження шаблонів…
               </div>
-            ) : templates.length === 0 ? (
-              <p className="text-sm text-muted">
-                Шаблонів ще немає. Створіть їх у розділі «Воронки».
-              </p>
             ) : (
               <select
                 id="email-template"
@@ -196,6 +199,7 @@ export function CandidateEmailsTab({
                 onChange={(event) => handleTemplateChange(event.target.value)}
                 className={formControlClassName}
               >
+                <option value="">Без шаблону — ввести вручну</option>
                 {templates.map((template) => (
                   <option key={template.id} value={template.id}>
                     {template.title}
@@ -203,6 +207,9 @@ export function CandidateEmailsTab({
                 ))}
               </select>
             )}
+            <p className="text-xs text-muted">
+              Шаблон лише стартова точка. Тему та текст можна повністю змінити.
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -213,8 +220,12 @@ export function CandidateEmailsTab({
               id="email-subject"
               required
               value={subject}
-              onChange={(event) => setSubject(event.target.value)}
+              onChange={(event) => {
+                setSubject(event.target.value);
+                setIsEmailDirty(true);
+              }}
               className={formControlClassName}
+              placeholder="Тема листа"
             />
           </div>
 
@@ -227,8 +238,12 @@ export function CandidateEmailsTab({
               required
               rows={10}
               value={body}
-              onChange={(event) => setBody(event.target.value)}
+              onChange={(event) => {
+                setBody(event.target.value);
+                setIsEmailDirty(true);
+              }}
               className={formControlClassName}
+              placeholder="Текст повідомлення…"
             />
           </div>
 
@@ -288,61 +303,41 @@ export function CandidateEmailsTab({
                           {isOutbound ? "Вихідний" : "Вхідний"}
                         </span>
                         <span
-                          className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[message.status]}`}
+                          className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            STATUS_STYLES[message.status]
+                          }`}
                         >
                           {STATUS_LABELS[message.status]}
                         </span>
-                        {isOutbound && message.status === "SENT" && (
-                          <span className="text-xs text-muted" title="Статус прочитання">
-                            {message.isRead ? "✓✓" : "✓"}
-                            {message.isClicked ? " 🔗" : ""}
-                          </span>
-                        )}
                       </div>
-                      <h3 className="mt-2 text-base font-semibold text-foreground">
+                      <h3 className="mt-2 text-sm font-semibold text-foreground">
                         {message.subject}
                       </h3>
+                      <p className="mt-1 text-xs text-muted">
+                        {isOutbound
+                          ? `${message.senderName} → ${message.recipientEmail}`
+                          : `${message.senderEmail} → ${message.recipientName}`}
+                        {" · "}
+                        {formatRelativeTimeUk(message.sentAt)}
+                      </p>
                     </div>
-                    <div className="text-right text-xs text-muted">
-                      <time dateTime={message.sentAt}>{formatTimestamp(message.sentAt)}</time>
-                      <p className="mt-1">{formatRelativeTimeUk(message.sentAt)}</p>
-                    </div>
+                    <time className="text-xs text-muted" dateTime={message.sentAt}>
+                      {formatTimestamp(message.sentAt)}
+                    </time>
                   </div>
 
-                  <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-                    <div>
-                      <dt className="text-xs font-medium uppercase tracking-wide text-muted">
-                        Відправник
-                      </dt>
-                      <dd className="mt-1 text-foreground">
-                        {message.senderName}
-                        <span className="block text-muted">{message.senderEmail}</span>
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs font-medium uppercase tracking-wide text-muted">
-                        Одержувач
-                      </dt>
-                      <dd className="mt-1 text-foreground">
-                        {message.recipientName}
-                        <span className="block text-muted">{message.recipientEmail}</span>
-                      </dd>
-                    </div>
-                    {message.ccEmails && (
-                      <div className="sm:col-span-2">
-                        <dt className="text-xs font-medium uppercase tracking-wide text-muted">
-                          CC
-                        </dt>
+                  {message.ccEmails && (
+                    <dl className="mt-3 grid gap-1 text-xs">
+                      <div>
+                        <dt className="font-medium text-muted">CC/BCC</dt>
                         <dd className="mt-1 text-foreground">{message.ccEmails}</dd>
                       </div>
-                    )}
-                  </dl>
+                    </dl>
+                  )}
 
-                  <div className="mt-4 rounded-lg border border-border bg-background px-4 py-3">
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
-                      {message.body}
-                    </p>
-                  </div>
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                    {message.body}
+                  </p>
                 </article>
               </li>
             );

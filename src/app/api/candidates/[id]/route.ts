@@ -48,11 +48,22 @@ export async function PATCH(request: Request, context: RouteContext) {
       : [];
 
     let targetStageName: string | null = null;
+    const targetJobId = updates.jobId ?? existing.jobId;
+
+    if (updates.jobId) {
+      const job = await prisma.job.findUnique({
+        where: { id: updates.jobId },
+        select: { id: true },
+      });
+      if (!job) {
+        throw new ApiError(400, "jobId must reference an existing vacancy");
+      }
+    }
 
     if (updates.stageId) {
       const targetStage = await validateStageBelongsToJob(
         updates.stageId,
-        existing.jobId,
+        targetJobId,
       );
       targetStageName = targetStage.name;
 
@@ -63,7 +74,9 @@ export async function PATCH(request: Request, context: RouteContext) {
       });
       Object.assign(updates, rejectionFields);
 
-      await syncCandidateApplication(id, existing.jobId, updates.stageId);
+      await syncCandidateApplication(id, targetJobId, updates.stageId);
+    } else if (updates.jobId) {
+      await syncCandidateApplication(id, updates.jobId, existing.stageId);
     }
 
     if (updates.recruiterId) {
