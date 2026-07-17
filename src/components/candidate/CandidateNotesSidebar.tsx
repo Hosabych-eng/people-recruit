@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import type { CandidateNote } from "@/types";
+import { NoteRichTextEditor } from "@/components/candidate/NoteRichTextEditor";
 import { Spinner } from "@/components/ui/Spinner";
-import { formControlClassName } from "@/components/ui/formStyles";
 import { getAvatarColors, getInitials } from "@/lib/avatar-colors";
 import { formatRelativeTimeUk } from "@/lib/format-relative-time";
+import { isProbablyHtml, noteHtmlIsEmpty, sanitizeNoteHtml } from "@/lib/note-html";
 import { api } from "@/lib/api/client";
 
 type CandidateNotesSidebarProps = {
@@ -35,6 +36,23 @@ function NoteAvatar({ name, photoUrl }: { name: string; photoUrl: string | null 
   );
 }
 
+function NoteBody({ content }: { content: string }) {
+  if (isProbablyHtml(content)) {
+    return (
+      <div
+        className="note-html mt-2 text-sm leading-relaxed text-foreground/90 [&_a]:text-primary [&_a]:underline [&_img]:mt-2 [&_img]:max-h-48 [&_img]:rounded-md [&_img]:border [&_img]:border-border [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
+        dangerouslySetInnerHTML={{ __html: sanitizeNoteHtml(content) }}
+      />
+    );
+  }
+
+  return (
+    <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+      {content}
+    </p>
+  );
+}
+
 export function CandidateNotesSidebar({
   candidateId,
   initialNotes,
@@ -45,16 +63,19 @@ export function CandidateNotesSidebar({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    setNotes(initialNotes);
+  }, [initialNotes]);
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const trimmed = content.trim();
-    if (!trimmed) return;
+    if (noteHtmlIsEmpty(content)) return;
 
     setIsSubmitting(true);
     setError(null);
 
     try {
-      const note = await api.candidates.notes.create(candidateId, { content: trimmed });
+      const note = await api.candidates.notes.create(candidateId, { content });
       setNotes((current) => {
         const next = [note, ...current];
         onNotesChange?.(next);
@@ -90,23 +111,18 @@ export function CandidateNotesSidebar({
       </div>
 
       <form onSubmit={handleSubmit} className="border-b border-border px-5 py-4">
-        <div className="rounded-lg border border-border bg-background">
-          <div className="flex items-center gap-1 border-b border-border px-2 py-1.5 text-muted">
-            <ToolbarButton label="Жирний">B</ToolbarButton>
-            <ToolbarButton label="Курсив">I</ToolbarButton>
-            <ToolbarButton label="Підкреслений">U</ToolbarButton>
-          </div>
-          <textarea
-            rows={4}
+        <div className="space-y-2">
+          <NoteRichTextEditor
+            candidateId={candidateId}
             value={content}
-            onChange={(event) => setContent(event.target.value)}
-            placeholder="Натисніть тут, щоб додати примітку..."
-            className={`${formControlClassName} resize-none border-0 bg-transparent shadow-none focus:ring-0`}
+            onChange={setContent}
+            disabled={isSubmitting}
+            onUploadError={setError}
           />
-          <div className="flex justify-end border-t border-border px-3 py-2">
+          <div className="flex justify-end">
             <button
               type="submit"
-              disabled={isSubmitting || !content.trim()}
+              disabled={isSubmitting || noteHtmlIsEmpty(content)}
               className="inline-flex h-9 items-center justify-center rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
             >
               {isSubmitting ? (
@@ -120,9 +136,7 @@ export function CandidateNotesSidebar({
             </button>
           </div>
         </div>
-        {error && (
-          <p className="mt-2 text-sm text-red-600">{error}</p>
-        )}
+        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
       </form>
 
       <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
@@ -156,9 +170,7 @@ export function CandidateNotesSidebar({
                       </button>
                     </div>
                   </div>
-                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
-                    {note.content}
-                  </p>
+                  <NoteBody content={note.content} />
                 </div>
               </div>
             </article>
@@ -166,23 +178,5 @@ export function CandidateNotesSidebar({
         )}
       </div>
     </aside>
-  );
-}
-
-function ToolbarButton({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      className="flex h-7 w-7 items-center justify-center rounded text-xs font-semibold hover:bg-slate-100"
-    >
-      {children}
-    </button>
   );
 }

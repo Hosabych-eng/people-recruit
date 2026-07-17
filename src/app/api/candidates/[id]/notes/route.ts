@@ -8,6 +8,8 @@ import {
 import { ApiError } from "@/lib/api/response";
 import { requireSessionUser } from "@/lib/auth/server";
 
+import { sanitizeNoteHtml, noteHtmlIsEmpty } from "@/lib/note-html";
+
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
@@ -37,7 +39,13 @@ export async function POST(request: Request, context: RouteContext) {
 
     const body = await parseJsonBody<{ content?: unknown }>(request);
 
-    if (typeof body.content !== "string" || !body.content.trim()) {
+    if (typeof body.content !== "string" || noteHtmlIsEmpty(body.content)) {
+      throw new ApiError(400, "content is required");
+    }
+
+    const content = sanitizeNoteHtml(body.content);
+
+    if (noteHtmlIsEmpty(content)) {
       throw new ApiError(400, "content is required");
     }
 
@@ -49,7 +57,7 @@ export async function POST(request: Request, context: RouteContext) {
     const note = await prisma.candidateNote.create({
       data: {
         candidateId: id,
-        content: body.content.trim(),
+        content,
         authorId: session.id,
         authorName: author?.name ?? session.name,
         authorRole: session.role === "ADMIN" ? "Administrator" : "Middle Recruiter",

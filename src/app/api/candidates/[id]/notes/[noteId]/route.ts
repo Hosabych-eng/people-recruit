@@ -7,6 +7,7 @@ import {
   parseJsonBody,
 } from "@/lib/api/response";
 import { requireSessionUser } from "@/lib/auth/server";
+import { noteHtmlIsEmpty, sanitizeNoteHtml } from "@/lib/note-html";
 
 type RouteContext = {
   params: Promise<{ id: string; noteId: string }>;
@@ -19,7 +20,12 @@ export async function PATCH(request: Request, context: RouteContext) {
     await getCandidateOrThrow(id, session);
 
     const body = await parseJsonBody<{ content?: unknown }>(request);
-    if (typeof body.content !== "string" || !body.content.trim()) {
+    if (typeof body.content !== "string" || noteHtmlIsEmpty(body.content)) {
+      throw new ApiError(400, "content is required");
+    }
+
+    const content = sanitizeNoteHtml(body.content);
+    if (noteHtmlIsEmpty(content)) {
       throw new ApiError(400, "content is required");
     }
 
@@ -33,7 +39,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     const note = await prisma.candidateNote.update({
       where: { id: noteId },
-      data: { content: body.content.trim() },
+      data: { content },
     });
 
     return jsonResponse(note);

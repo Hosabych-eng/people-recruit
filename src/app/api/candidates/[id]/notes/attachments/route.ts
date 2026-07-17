@@ -4,34 +4,18 @@ import { ApiError, errorResponse, jsonResponse } from "@/lib/api/response";
 import { requireSessionUser } from "@/lib/auth/server";
 import {
   assertDocumentMimeType,
-  deleteStoredFile,
   saveUploadedFile,
 } from "@/lib/file-storage";
 import { serializeCandidateDocument } from "@/lib/test-assignments";
 
-type RouteContext = {
-  params: Promise<{ id: string }>;
-};
+type RouteContext = { params: Promise<{ id: string }> };
 
-const CATEGORY_VALUES = new Set(["RESUME", "PORTFOLIO", "OFFER", "OTHER"]);
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 
-export async function GET(_request: Request, context: RouteContext) {
-  try {
-    const session = await requireSessionUser();
-    const { id } = await context.params;
-    await getCandidateOrThrow(id, session);
-
-    const documents = await prisma.candidateDocument.findMany({
-      where: { candidateId: id },
-      orderBy: { createdAt: "desc" },
-    });
-
-    return jsonResponse(documents.map(serializeCandidateDocument));
-  } catch (error) {
-    return errorResponse(error);
-  }
-}
-
+/**
+ * Upload image/file for note editor. Reuses document MIME + executable blocking.
+ * Stores as CandidateDocument (OTHER) so existing download route serves it.
+ */
 export async function POST(request: Request, context: RouteContext) {
   try {
     const session = await requireSessionUser();
@@ -39,20 +23,14 @@ export async function POST(request: Request, context: RouteContext) {
     await getCandidateOrThrow(id, session);
 
     const formData = await request.formData();
-    const title = String(formData.get("title") ?? "").trim();
-    const category = String(formData.get("category") ?? "OTHER").trim();
     const file = formData.get("file");
-
-    if (!title) {
-      throw new ApiError(400, "Назва документа обов'язкова");
-    }
-
-    if (!CATEGORY_VALUES.has(category)) {
-      throw new ApiError(400, "Invalid document category");
-    }
 
     if (!(file instanceof File) || file.size === 0) {
       throw new ApiError(400, "Потрібно завантажити файл");
+    }
+
+    if (file.size > MAX_ATTACHMENT_BYTES) {
+      throw new ApiError(400, "Файл завеликий (макс. 10 МБ)");
     }
 
     assertDocumentMimeType(file.type || "application/octet-stream", file.name);
@@ -63,8 +41,8 @@ export async function POST(request: Request, context: RouteContext) {
     const document = await prisma.candidateDocument.create({
       data: {
         candidateId: id,
-        category: category as "RESUME" | "PORTFOLIO" | "OFFER" | "OTHER",
-        title,
+        category: "OTHER",
+        title: `Примітка: ${saved.fileName}`,
         fileName: saved.fileName,
         filePath: saved.filePath,
         mimeType: saved.mimeType,
@@ -74,7 +52,14 @@ export async function POST(request: Request, context: RouteContext) {
       },
     });
 
-    return jsonResponse(serializeCandidateDocument(document), 201);
+    const serialized = serializeCandidateDocument(document);
+    return jsonResponse(
+      {
+        ...serialized,
+        url: `/api/candidates/${id}/documents/${document.id}`,
+      },
+      201,
+    );
   } catch (error) {
     return errorResponse(error);
   }

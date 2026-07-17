@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import type { Candidate } from "@prisma/client";
 import type { CandidateNote, JobWithPipeline } from "@/types";
+import { NoteRichTextEditor } from "@/components/candidate/NoteRichTextEditor";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
-import { formControlClassName } from "@/components/ui/formStyles";
 import { api } from "@/lib/api/client";
+import { isProbablyHtml, noteHtmlIsEmpty, sanitizeNoteHtml } from "@/lib/note-html";
 import { findCandidateInPipeline } from "@/lib/pipeline-utils";
 
 type CandidateNotesDrawerProps = {
@@ -65,6 +66,23 @@ function AuthorAvatar({
     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
       {getInitials(name)}
     </div>
+  );
+}
+
+function NoteBody({ content }: { content: string }) {
+  if (isProbablyHtml(content)) {
+    return (
+      <div
+        className="mt-2 text-sm leading-relaxed text-foreground [&_a]:text-primary [&_a]:underline [&_img]:mt-2 [&_img]:max-h-48 [&_img]:rounded-md [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
+        dangerouslySetInnerHTML={{ __html: sanitizeNoteHtml(content) }}
+      />
+    );
+  }
+
+  return (
+    <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+      {content}
+    </p>
   );
 }
 
@@ -142,16 +160,14 @@ export function CandidateNotesDrawer({
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
-    const trimmed = content.trim();
-    if (!trimmed) return;
+    if (noteHtmlIsEmpty(content)) return;
 
     setIsSubmitting(true);
     setError(null);
 
     try {
       const note = await api.candidates.notes.create(candidateId, {
-        content: trimmed,
+        content,
       });
       setNotes((current) => [...current, note]);
       setContent("");
@@ -241,9 +257,7 @@ export function CandidateNotesDrawer({
                         {formatTimestamp(note.createdAt)}
                       </time>
                     </div>
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-                      {note.content}
-                    </p>
+                    <NoteBody content={note.content} />
                   </div>
                 </div>
               </article>
@@ -261,19 +275,24 @@ export function CandidateNotesDrawer({
             </div>
           )}
 
-          <label className="block space-y-2">
+          <div className="space-y-2">
             <span className="text-sm font-medium text-foreground">Add note</span>
-            <textarea
-              rows={3}
+            <NoteRichTextEditor
+              candidateId={candidateId}
               value={content}
-              onChange={(event) => setContent(event.target.value)}
-              className={`${formControlClassName} resize-none`}
+              onChange={setContent}
+              disabled={isSubmitting}
               placeholder="Share interview feedback, next steps, or context for the team…"
+              onUploadError={setError}
             />
-          </label>
+          </div>
 
           <div className="mt-3 flex justify-end">
-            <Button type="submit" size="sm" disabled={isSubmitting || !content.trim()}>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={isSubmitting || noteHtmlIsEmpty(content)}
+            >
               {isSubmitting ? (
                 <>
                   <Spinner className="mr-2 h-4 w-4" />

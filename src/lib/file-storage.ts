@@ -145,8 +145,31 @@ export function assertTemplateMimeType(mimeType: string, fileName?: string) {
   }
 }
 
-export function assertDocumentMimeType(mimeType: string) {
-  if (!ALLOWED_DOCUMENT_MIME_TYPES.has(mimeType)) {
+export function assertDocumentMimeType(mimeType: string, fileName?: string) {
+  const extension = fileName ? normalizeExtension(fileName) : "";
+  const normalizedMime = normalizeMimeType(mimeType);
+
+  if (
+    (extension && BLOCKED_EXECUTABLE_EXTENSIONS.has(extension)) ||
+    (fileName && hasBlockedExecutableSuffix(fileName))
+  ) {
+    throw new Error("Заборонений тип файлу (виконувані файли не дозволені)");
+  }
+
+  if (
+    normalizedMime &&
+    normalizedMime !== "application/octet-stream" &&
+    !ALLOWED_DOCUMENT_MIME_TYPES.has(normalizedMime)
+  ) {
+    throw new Error("Непідтримуваний тип файлу");
+  }
+
+  if (
+    (!normalizedMime || normalizedMime === "application/octet-stream") &&
+    extension &&
+    !ALLOWED_TEMPLATE_EXTENSIONS.has(extension) &&
+    ![".png", ".jpg", ".jpeg", ".webp"].includes(extension)
+  ) {
     throw new Error("Непідтримуваний тип файлу");
   }
 }
