@@ -301,8 +301,6 @@ export function CandidateProfileView({
           )}
           {activeTab === "offers" && (
             <CandidateOffersTab
-              profile={profile}
-              onProfileChange={setProfile}
               candidateId={profile.id}
               candidateName={displayName}
               candidateEmail={blindHiring ? null : profile.email}

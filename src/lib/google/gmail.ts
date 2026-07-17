@@ -13,10 +13,13 @@ type SendGmailMessageInput = {
   fromName?: string;
   to: string;
   cc?: string[];
+  bcc?: string[];
   subject: string;
   text: string;
   html: string;
+  /** @deprecated Prefer `attachments` for multiple files. Kept for callers. */
   attachment?: GmailAttachment;
+  attachments?: GmailAttachment[];
 };
 
 export type ParsedGmailMessage = {
@@ -110,20 +113,37 @@ export async function sendGmailMessage(input: SendGmailMessageInput) {
     ? `${input.fromName} <${input.from}>`
     : input.from;
 
-  let mimeMessage: string;
+  const attachments =
+    input.attachments && input.attachments.length > 0
+      ? input.attachments
+      : input.attachment
+        ? [input.attachment]
+        : [];
 
   const ccLine =
     input.cc && input.cc.length > 0 ? [`Cc: ${input.cc.join(", ")}`] : [];
+  const bccLine =
+    input.bcc && input.bcc.length > 0 ? [`Bcc: ${input.bcc.join(", ")}`] : [];
 
-  if (input.attachment) {
+  let mimeMessage: string;
+
+  if (attachments.length > 0) {
     const mixedBoundary = `mixed_${Date.now()}`;
     const altBoundary = `alt_${Date.now()}`;
-    const attachmentBase64 = input.attachment.content.toString("base64");
+    const attachmentParts = attachments.flatMap((file) => [
+      `--${mixedBoundary}`,
+      `Content-Type: ${file.mimeType}; name="${file.fileName}"`,
+      "Content-Transfer-Encoding: base64",
+      `Content-Disposition: attachment; filename="${file.fileName}"`,
+      "",
+      file.content.toString("base64"),
+    ]);
 
     mimeMessage = [
       `From: ${fromHeader}`,
       `To: ${input.to}`,
       ...ccLine,
+      ...bccLine,
       `Subject: ${encodeHeaderValue(input.subject)}`,
       "MIME-Version: 1.0",
       `Content-Type: multipart/mixed; boundary="${mixedBoundary}"`,
@@ -132,12 +152,7 @@ export async function sendGmailMessage(input: SendGmailMessageInput) {
       `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
       "",
       buildAlternativePart(altBoundary, input.text, input.html),
-      `--${mixedBoundary}`,
-      `Content-Type: ${input.attachment.mimeType}; name="${input.attachment.fileName}"`,
-      "Content-Transfer-Encoding: base64",
-      `Content-Disposition: attachment; filename="${input.attachment.fileName}"`,
-      "",
-      attachmentBase64,
+      ...attachmentParts,
       `--${mixedBoundary}--`,
     ].join("\r\n");
   } else {
@@ -146,6 +161,7 @@ export async function sendGmailMessage(input: SendGmailMessageInput) {
       `From: ${fromHeader}`,
       `To: ${input.to}`,
       ...ccLine,
+      ...bccLine,
       `Subject: ${encodeHeaderValue(input.subject)}`,
       "MIME-Version: 1.0",
       `Content-Type: multipart/alternative; boundary="${boundary}"`,

@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
-import type { CandidateDocument, CandidateEmailMessage, CandidateProfile, EmailTemplate } from "@/types";
-import { CandidateApplicationsPanel } from "@/components/candidate/CandidateApplicationsPanel";
+import { useEffect, useMemo, useState, type FormEvent, type KeyboardEvent } from "react";
+import type { CandidateDocument, CandidateEmailMessage, EmailTemplate } from "@/types";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { formControlClassName, formLabelClassName } from "@/components/ui/formStyles";
@@ -11,8 +10,6 @@ import { formatRelativeTimeUk } from "@/lib/format-relative-time";
 import { api } from "@/lib/api/client";
 
 type CandidateOffersTabProps = {
-  profile: CandidateProfile;
-  onProfileChange: (profile: CandidateProfile) => void;
   candidateId: string;
   candidateName: string;
   candidateEmail: string | null;
@@ -23,6 +20,8 @@ type CandidateOffersTabProps = {
   onDocumentsChange: (documents: CandidateDocument[]) => void;
   onEmailSent: (email: CandidateEmailMessage) => void;
 };
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function formatFileSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -40,9 +39,12 @@ function formatTimestamp(value: string) {
   }).format(new Date(value));
 }
 
+type ExtraRecipient = {
+  email: string;
+  kind: "cc" | "bcc";
+};
+
 export function CandidateOffersTab({
-  profile,
-  onProfileChange,
   candidateId,
   candidateName,
   candidateEmail,
@@ -73,7 +75,10 @@ export function CandidateOffersTab({
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
-  const [cc, setCc] = useState("");
+  const [extraRecipients, setExtraRecipients] = useState<ExtraRecipient[]>([]);
+  const [recipientDraft, setRecipientDraft] = useState("");
+  const [recipientKind, setRecipientKind] = useState<"cc" | "bcc">("cc");
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -99,6 +104,10 @@ export function CandidateOffersTab({
         setEmailError(err instanceof Error ? err.message : "Не вдалося завантажити шаблони");
       })
       .finally(() => setIsLoadingTemplates(false));
+
+    // Pre-select all current offer docs when opening composer.
+    setSelectedDocumentIds(offerDocuments.map((doc) => doc.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when composing opens
   }, [isComposing, candidateName, jobTitle, recruiterName]);
 
   const handleTemplateChange = (templateId: string) => {
@@ -107,6 +116,34 @@ export function CandidateOffersTab({
     if (!template) return;
     setSubject(compileEmailTemplate(template.subject, templateContext));
     setBody(compileEmailTemplate(template.body, templateContext));
+  };
+
+  const addRecipient = () => {
+    const email = recipientDraft.trim().toLowerCase();
+    if (!email) return;
+    if (!EMAIL_PATTERN.test(email)) {
+      setEmailError(`Некоректний email: ${email}`);
+      return;
+    }
+    if (candidateEmail && email === candidateEmail.trim().toLowerCase()) {
+      setEmailError("Цей email уже є основним отримувачем");
+      return;
+    }
+    if (extraRecipients.some((row) => row.email === email)) {
+      setEmailError("Цей отримувач уже доданий");
+      return;
+    }
+
+    setEmailError(null);
+    setExtraRecipients((current) => [...current, { email, kind: recipientKind }]);
+    setRecipientDraft("");
+  };
+
+  const handleRecipientKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter" || event.key === ",") {
+      event.preventDefault();
+      addRecipient();
+    }
   };
 
   const handleUpload = async (event: FormEvent<HTMLFormElement>) => {
@@ -125,6 +162,9 @@ export function CandidateOffersTab({
       onDocumentsChange([created, ...documents]);
       setTitle("");
       setFile(null);
+      if (isComposing) {
+        setSelectedDocumentIds((current) => [...current, created.id]);
+      }
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Не вдалося завантажити файл");
     } finally {
@@ -138,27 +178,51 @@ export function CandidateOffersTab({
     try {
       await api.candidates.documents.delete(candidateId, documentId);
       onDocumentsChange(documents.filter((doc) => doc.id !== documentId));
+      setSelectedDocumentIds((current) => current.filter((id) => id !== documentId));
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Не вдалося видалити документ");
     }
   };
 
+  const resetComposer = () => {
+    setIsComposing(false);
+    setExtraRecipients([]);
+    setRecipientDraft("");
+    setRecipientKind("cc");
+    setSelectedDocumentIds([]);
+    setSubject("");
+    setBody("");
+    setEmailError(null);
+  };
+
   const handleEmailSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!candidateEmail) {
+      setEmailError("Додайте email кандидата в профілі перед надсиланням");
+      return;
+    }
+
     setIsSubmitting(true);
     setEmailError(null);
 
     try {
+      const cc = extraRecipients
+        .filter((row) => row.kind === "cc")
+        .map((row) => row.email);
+      const bcc = extraRecipients
+        .filter((row) => row.kind === "bcc")
+        .map((row) => row.email);
+
       const sent = await api.candidates.emails.send(candidateId, {
         subject: subject.trim(),
         body: body.trim(),
-        cc: cc.trim() || undefined,
+        cc: cc.length > 0 ? cc : undefined,
+        bcc: bcc.length > 0 ? bcc : undefined,
+        documentIds:
+          selectedDocumentIds.length > 0 ? selectedDocumentIds : undefined,
       });
       onEmailSent(sent);
-      setIsComposing(false);
-      setCc("");
-      setSubject("");
-      setBody("");
+      resetComposer();
     } catch (err) {
       setEmailError(err instanceof Error ? err.message : "Не вдалося надіслати лист");
     } finally {
@@ -166,10 +230,16 @@ export function CandidateOffersTab({
     }
   };
 
+  const toggleDocument = (documentId: string) => {
+    setSelectedDocumentIds((current) =>
+      current.includes(documentId)
+        ? current.filter((id) => id !== documentId)
+        : [...current, documentId],
+    );
+  };
+
   return (
     <div className="space-y-6">
-      <CandidateApplicationsPanel profile={profile} onProfileChange={onProfileChange} />
-
       <section className="rounded-xl border border-border bg-card shadow-sm">
         <div className="border-b border-border px-5 py-4">
           <h2 className="text-base font-semibold text-foreground">Документи пропозиції</h2>
@@ -259,12 +329,16 @@ export function CandidateOffersTab({
             <h2 className="text-base font-semibold text-foreground">Листування щодо пропозиції</h2>
             <p className="mt-1 text-sm text-muted">
               {candidateEmail
-                ? `Надіслати пропозицію на ${candidateEmail} з копією колегам`
+                ? `Основний отримувач: ${candidateEmail}. Можна додати CC/BCC і вкладення.`
                 : "Додайте email кандидата в профілі перед надсиланням"}
             </p>
           </div>
           {!isComposing && (
-            <Button size="sm" onClick={() => setIsComposing(true)}>
+            <Button
+              size="sm"
+              onClick={() => setIsComposing(true)}
+              disabled={!candidateEmail}
+            >
               Надіслати пропозицію
             </Button>
           )}
@@ -277,9 +351,70 @@ export function CandidateOffersTab({
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h3 className="text-sm font-semibold text-foreground">Новий лист пропозиції</h3>
-              <Button type="button" variant="outline" size="sm" onClick={() => setIsComposing(false)}>
+              <Button type="button" variant="outline" size="sm" onClick={resetComposer}>
                 Скасувати
               </Button>
+            </div>
+
+            <div className="space-y-2">
+              <span className={formLabelClassName}>Отримувачі</span>
+              <div className="flex flex-wrap gap-2 rounded-lg border border-border bg-background p-2">
+                {candidateEmail && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                    To · {candidateEmail}
+                  </span>
+                )}
+                {extraRecipients.map((row) => (
+                  <span
+                    key={`${row.kind}-${row.email}`}
+                    className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-foreground"
+                  >
+                    {row.kind.toUpperCase()} · {row.email}
+                    <button
+                      type="button"
+                      aria-label={`Видалити ${row.email}`}
+                      className="ml-0.5 text-muted hover:text-red-600"
+                      onClick={() =>
+                        setExtraRecipients((current) =>
+                          current.filter(
+                            (item) =>
+                              !(item.email === row.email && item.kind === row.kind),
+                          ),
+                        )
+                      }
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <select
+                  value={recipientKind}
+                  onChange={(event) =>
+                    setRecipientKind(event.target.value as "cc" | "bcc")
+                  }
+                  className={`${formControlClassName} sm:w-28`}
+                  aria-label="Тип отримувача"
+                >
+                  <option value="cc">CC</option>
+                  <option value="bcc">BCC</option>
+                </select>
+                <input
+                  value={recipientDraft}
+                  onChange={(event) => setRecipientDraft(event.target.value)}
+                  onKeyDown={handleRecipientKeyDown}
+                  placeholder="email@company.com"
+                  className={`${formControlClassName} flex-1`}
+                />
+                <Button type="button" size="sm" variant="outline" onClick={addRecipient}>
+                  Додати
+                </Button>
+              </div>
+              <p className="text-xs text-muted">
+                Enter або кома — додати адресу до списку отримувачів.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -298,6 +433,9 @@ export function CandidateOffersTab({
                   onChange={(event) => handleTemplateChange(event.target.value)}
                   className={formControlClassName}
                 >
+                  {templates.length === 0 && (
+                    <option value="">Немає шаблонів</option>
+                  )}
                   {templates.map((template) => (
                     <option key={template.id} value={template.id}>
                       {template.title}
@@ -308,17 +446,36 @@ export function CandidateOffersTab({
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="offer-cc" className={formLabelClassName}>
-                CC / Додати в листування
-              </label>
-              <input
-                id="offer-cc"
-                value={cc}
-                onChange={(event) => setCc(event.target.value)}
-                placeholder="manager@company.com, hr@company.com"
-                className={formControlClassName}
-              />
-              <p className="text-xs text-muted">Кілька адрес через кому</p>
+              <span className={formLabelClassName}>Вкладення з документів пропозиції</span>
+              {offerDocuments.length === 0 ? (
+                <p className="text-xs text-muted">
+                  Спочатку завантажте файл у блоці «Документи пропозиції».
+                </p>
+              ) : (
+                <ul className="space-y-2 rounded-lg border border-border bg-background p-3">
+                  {offerDocuments.map((doc) => {
+                    const checked = selectedDocumentIds.includes(doc.id);
+                    return (
+                      <li key={doc.id}>
+                        <label className="flex cursor-pointer items-start gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5"
+                            checked={checked}
+                            onChange={() => toggleDocument(doc.id)}
+                          />
+                          <span className="min-w-0">
+                            <span className="font-medium text-foreground">{doc.title}</span>
+                            <span className="mt-0.5 block text-xs text-muted">
+                              {doc.fileName} · {formatFileSize(doc.fileSize)}
+                            </span>
+                          </span>
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -354,7 +511,15 @@ export function CandidateOffersTab({
               </div>
             )}
 
-            <div className="flex justify-end">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs text-muted">
+                {selectedDocumentIds.length > 0
+                  ? `Вкладень: ${selectedDocumentIds.length}`
+                  : "Без вкладень"}
+                {extraRecipients.length > 0
+                  ? ` · додаткових отримувачів: ${extraRecipients.length}`
+                  : ""}
+              </p>
               <Button type="submit" disabled={isSubmitting || !subject.trim() || !body.trim()}>
                 {isSubmitting ? "Надсилання…" : "Надіслати через Gmail"}
               </Button>
@@ -376,9 +541,14 @@ export function CandidateOffersTab({
                     <p className="mt-1 text-xs text-muted">{formatTimestamp(message.sentAt)}</p>
                   </div>
                 </div>
+                <p className="mt-2 text-xs text-muted">
+                  <span className="font-medium text-foreground">To:</span>{" "}
+                  {message.recipientEmail}
+                </p>
                 {message.ccEmails && (
-                  <p className="mt-2 text-xs text-muted">
-                    <span className="font-medium text-foreground">CC:</span> {message.ccEmails}
+                  <p className="mt-1 text-xs text-muted">
+                    <span className="font-medium text-foreground">CC/BCC:</span>{" "}
+                    {message.ccEmails}
                   </p>
                 )}
                 <p className="mt-3 whitespace-pre-wrap text-sm text-foreground/90">{message.body}</p>

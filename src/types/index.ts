@@ -276,6 +276,8 @@ export type SendCandidateEmailInput = {
   subject: string;
   body: string;
   cc?: string | string[];
+  bcc?: string | string[];
+  documentIds?: string[];
 };
 
 export type CandidateProfile = {

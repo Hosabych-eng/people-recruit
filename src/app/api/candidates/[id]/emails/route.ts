@@ -8,6 +8,7 @@ import {
   plainTextToHtml,
 } from "@/lib/email-template-compile";
 import { prepareTrackedHtml } from "@/lib/email-tracking";
+import { readStoredFile } from "@/lib/file-storage";
 import { sendGmailMessage } from "@/lib/google/gmail";
 import { getAuthenticatedGoogleClient } from "@/lib/google/oauth";
 
@@ -80,6 +81,38 @@ export async function POST(request: Request, context: RouteContext) {
     const subject = compileEmailTemplate(input.subject, templateContext);
     const messageBody = compileEmailTemplate(input.body, templateContext);
 
+    const attachments = [];
+    if (input.documentIds.length > 0) {
+      const documents = await prisma.candidateDocument.findMany({
+        where: {
+          candidateId: candidate.id,
+          id: { in: input.documentIds },
+          category: "OFFER",
+        },
+      });
+
+      if (documents.length !== input.documentIds.length) {
+        throw new ApiError(
+          400,
+          "One or more documentIds are invalid or not offer documents",
+        );
+      }
+
+      for (const document of documents) {
+        const content = await readStoredFile(document.filePath);
+        attachments.push({
+          fileName: document.fileName,
+          mimeType: document.mimeType,
+          content,
+        });
+      }
+    }
+
+    const ccEmailsLabel = [
+      ...input.cc.map((email) => email),
+      ...input.bcc.map((email) => `BCC:${email}`),
+    ];
+
     const emailMessage = await prisma.emailMessage.create({
       data: {
         candidateId: candidate.id,
@@ -89,7 +122,7 @@ export async function POST(request: Request, context: RouteContext) {
         senderEmail: session.email,
         recipientName: candidate.name,
         recipientEmail: candidateEmail,
-        ccEmails: input.cc.length > 0 ? input.cc.join(", ") : null,
+        ccEmails: ccEmailsLabel.length > 0 ? ccEmailsLabel.join(", ") : null,
         subject,
         body: messageBody,
       },
@@ -108,9 +141,11 @@ export async function POST(request: Request, context: RouteContext) {
         fromName: session.name,
         to: candidateEmail,
         cc: input.cc,
+        bcc: input.bcc,
         subject,
         text: messageBody,
         html: htmlBody,
+        attachments: attachments.length > 0 ? attachments : undefined,
       });
       deliveryStatus = providerId ? "SENT" : "FAILED";
     } catch (sendError) {

@@ -410,6 +410,8 @@ export function parseSendCandidateEmailBody(body: Record<string, unknown>) {
     subject: requireString(body.subject, "subject"),
     body: requireString(body.body, "body"),
     cc: parseCcEmails(body.cc),
+    bcc: parseCcEmails(body.bcc),
+    documentIds: parseDocumentIds(body.documentIds),
   };
 }
 
@@ -433,9 +435,24 @@ export function parseCcEmails(value: unknown): string[] {
 
   for (const email of emails) {
     if (!EMAIL_PATTERN.test(email)) {
-      throw new ApiError(400, `Invalid CC email: ${email}`);
+      throw new ApiError(400, `Invalid email: ${email}`);
     }
   }
 
   return emails;
+}
+
+function parseDocumentIds(value: unknown): string[] {
+  if (value === undefined || value === null || value === "") return [];
+  if (!Array.isArray(value)) {
+    throw new ApiError(400, "documentIds must be an array of strings");
+  }
+
+  for (const item of value) {
+    if (typeof item !== "string" || !item.trim()) {
+      throw new ApiError(400, "documentIds must contain only non-empty strings");
+    }
+  }
+
+  return [...new Set(value.map((item) => String(item).trim()))];
 }
