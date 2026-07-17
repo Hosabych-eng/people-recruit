@@ -8,7 +8,7 @@ export type InterviewInvitationTemplateInput = {
   meetingLink?: string;
 };
 
-function formatInterviewDate(date: Date) {
+export function formatInterviewDate(date: Date) {
   return new Intl.DateTimeFormat("uk-UA", {
     weekday: "long",
     day: "numeric",
@@ -17,7 +17,7 @@ function formatInterviewDate(date: Date) {
   }).format(date);
 }
 
-function formatInterviewTime(date: Date) {
+export function formatInterviewTime(date: Date) {
   return new Intl.DateTimeFormat("uk-UA", {
     hour: "2-digit",
     minute: "2-digit",

@@ -161,6 +161,9 @@ export type CreateInterviewInput = {
   scheduledAt: string;
   durationMinutes?: number;
   type?: "ONLINE" | "ONSITE" | "PHONE";
+  emailSubject?: string;
+  emailBody?: string;
+  emailLanguage?: "UA" | "EN";
 };
 
 export type CandidateEmailMessage = {

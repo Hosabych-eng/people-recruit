@@ -376,6 +376,18 @@ export function parseCreateInterviewBody(body: Record<string, unknown>) {
     scheduledAt,
     type: type as "ONLINE" | "ONSITE" | "PHONE",
     durationMinutes,
+    emailSubject:
+      body.emailSubject === undefined
+        ? undefined
+        : requireString(body.emailSubject, "emailSubject"),
+    emailBody:
+      body.emailBody === undefined
+        ? undefined
+        : requireString(body.emailBody, "emailBody"),
+    emailLanguage:
+      body.emailLanguage === "EN" || body.emailLanguage === "UA"
+        ? body.emailLanguage
+        : undefined,
   };
 }
 

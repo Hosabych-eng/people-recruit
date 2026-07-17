@@ -7,11 +7,13 @@ import { prepareTrackedHtml } from "@/lib/email-tracking";
 import { createInterviewCalendarEvent } from "@/lib/google/calendar";
 import { sendGmailMessage } from "@/lib/google/gmail";
 import { getAuthenticatedGoogleClient } from "@/lib/google/oauth";
+import { buildInterviewInvitationSubject } from "@/lib/interview-email-template";
 import {
-  buildInterviewInvitationBody,
-  buildInterviewInvitationHtml,
-  buildInterviewInvitationSubject,
-} from "@/lib/interview-email-template";
+  buildDefaultInterviewEmailFields,
+  compileInterviewInvitationText,
+  type InterviewEmailLanguage,
+} from "@/lib/interview-invitation-templates";
+import { plainTextToHtml } from "@/lib/email-template-compile";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -137,11 +139,32 @@ export async function POST(request: Request, context: RouteContext) {
       durationMinutes: body.durationMinutes,
       recruiterName: session.name,
       meetingLink: meetLink ?? undefined,
+      language: (body.emailLanguage ?? "UA") as InterviewEmailLanguage,
     };
 
-    const subject = buildInterviewInvitationSubject(templateInput);
-    const messageBody = buildInterviewInvitationBody(templateInput);
-    const htmlBody = buildInterviewInvitationHtml(templateInput);
+    const defaults = buildDefaultInterviewEmailFields(templateInput);
+    const subject = compileInterviewInvitationText(
+      body.emailSubject ?? defaults.subject,
+      templateInput,
+    );
+    let messageBody = compileInterviewInvitationText(
+      body.emailBody ?? defaults.body,
+      templateInput,
+    );
+
+    // If client sent already-compiled fallback text without a link, append Meet URL.
+    if (
+      meetLink &&
+      !messageBody.includes(meetLink) &&
+      !/\{\{\s*meeting_link\s*\}\}/i.test(body.emailBody ?? "")
+    ) {
+      const linkLine =
+        templateInput.language === "EN"
+          ? `Meeting link: ${meetLink}`
+          : `Посилання на зустріч: ${meetLink}`;
+      messageBody = `${messageBody.trim()}\n\n${linkLine}`;
+    }
+    const htmlBody = plainTextToHtml(messageBody);
 
     const emailMessage = await prisma.emailMessage.create({
       data: {
