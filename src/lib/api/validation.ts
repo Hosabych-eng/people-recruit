@@ -141,6 +141,12 @@ export function parseUpdateCandidateBody(body: Record<string, unknown>) {
     coverLetter?: string | null;
     rejectionReasonId?: string | null;
     rejectionNote?: string | null;
+    location?: string | null;
+    telegram?: string | null;
+    offerLink?: string | null;
+    firstContactDate?: Date | null;
+    lastContactDate?: Date | null;
+    recruiterId?: string | null;
   } = {};
 
   if ("name" in body) updates.name = requireString(body.name, "name");
@@ -208,6 +214,30 @@ export function parseUpdateCandidateBody(body: Record<string, unknown>) {
   if ("rejectionNote" in body) {
     updates.rejectionNote =
       body.rejectionNote === null ? null : optionalString(body.rejectionNote) ?? null;
+  }
+  if ("location" in body) {
+    updates.location =
+      body.location === null ? null : optionalString(body.location) ?? null;
+  }
+  if ("telegram" in body) {
+    updates.telegram =
+      body.telegram === null ? null : optionalString(body.telegram) ?? null;
+  }
+  if ("offerLink" in body) {
+    updates.offerLink =
+      body.offerLink === null ? null : optionalString(body.offerLink) ?? null;
+  }
+  if ("firstContactDate" in body) {
+    updates.firstContactDate = parseOptionalDate(body.firstContactDate, "firstContactDate");
+  }
+  if ("lastContactDate" in body) {
+    updates.lastContactDate = parseOptionalDate(body.lastContactDate, "lastContactDate");
+  }
+  if ("recruiterId" in body) {
+    updates.recruiterId =
+      body.recruiterId === null || body.recruiterId === ""
+        ? null
+        : requireString(body.recruiterId, "recruiterId");
   }
 
   if (Object.keys(updates).length === 0) {
@@ -300,6 +330,18 @@ function parseOptionalPositiveInt(
     throw new ApiError(400, `${field} must be a non-negative integer`);
   }
   return parsed;
+}
+
+function parseOptionalDate(value: unknown, field: string): Date | null {
+  if (value === null || value === "") return null;
+  if (typeof value !== "string" && typeof value !== "number") {
+    throw new ApiError(400, `${field} must be a valid date string or null`);
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    throw new ApiError(400, `${field} must be a valid date`);
+  }
+  return date;
 }
 
 const INTERVIEW_TYPES = new Set(["ONLINE", "ONSITE", "PHONE"]);

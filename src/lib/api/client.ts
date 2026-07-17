@@ -9,6 +9,7 @@ import type {
   CandidateNote,
   CandidateProfile,
   CandidateInterview,
+  CandidateLink,
   CandidateTestAssignment,
   CandidateWithRelations,
   CreateCandidateInput,
@@ -153,6 +154,33 @@ export const api = {
       request<{ success: boolean }>(`/api/candidates/${id}`, {
         method: "DELETE",
       }),
+
+    links: {
+      list: (candidateId: string) =>
+        request<CandidateLink[]>(`/api/candidates/${candidateId}/links`),
+
+      create: (candidateId: string, input: { label: string; url: string }) =>
+        request<CandidateLink>(`/api/candidates/${candidateId}/links`, {
+          method: "POST",
+          body: JSON.stringify(input),
+        }),
+
+      update: (
+        candidateId: string,
+        linkId: string,
+        input: Partial<{ label: string; url: string }>,
+      ) =>
+        request<CandidateLink>(`/api/candidates/${candidateId}/links/${linkId}`, {
+          method: "PATCH",
+          body: JSON.stringify(input),
+        }),
+
+      delete: (candidateId: string, linkId: string) =>
+        request<{ success: boolean }>(
+          `/api/candidates/${candidateId}/links/${linkId}`,
+          { method: "DELETE" },
+        ),
+    },
 
     notes: {
       list: (candidateId: string) =>
@@ -377,6 +405,13 @@ export const api = {
       request<{ success: boolean }>(`/api/stages/${id}`, {
         method: "DELETE",
       }),
+  },
+
+  recruiters: {
+    list: () =>
+      request<Array<{ id: string; name: string | null; email: string; image: string | null }>>(
+        "/api/recruiters",
+      ),
   },
 };
 

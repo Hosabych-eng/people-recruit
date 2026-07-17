@@ -336,6 +336,11 @@ model Candidate {
   emailsSent        Int               @default(0)
   emailsReceived    Int               @default(0)
   isNew             Boolean           @default(true)
+  location          String?
+  telegram          String?
+  offerLink         String?
+  firstContactDate  DateTime?
+  lastContactDate   DateTime?
   stageId           String
   jobId             String
   recruiterId       String?
@@ -358,6 +363,7 @@ model Candidate {
   documents       CandidateDocument[]
   customFieldValues CandidateCustomFieldValue[]
   evaluationScores CandidateEvaluationScore[]
+  links           CandidateLink[]
 
   @@index([stageId])
   @@index([jobId])
@@ -365,6 +371,20 @@ model Candidate {
   @@index([recruiterId])
   @@index([rejectionReasonId])
   @@map("candidates")
+}
+
+model CandidateLink {
+  id          String   @id @default(cuid())
+  candidateId String
+  label       String
+  url         String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@index([candidateId])
+  @@map("candidate_links")
 }
 
 model CandidateApplication {

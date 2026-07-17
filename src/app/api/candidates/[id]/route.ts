@@ -66,6 +66,16 @@ export async function PATCH(request: Request, context: RouteContext) {
       await syncCandidateApplication(id, existing.jobId, updates.stageId);
     }
 
+    if (updates.recruiterId) {
+      const recruiter = await prisma.user.findFirst({
+        where: { id: updates.recruiterId, status: "ACTIVE" },
+        select: { id: true },
+      });
+      if (!recruiter) {
+        throw new ApiError(400, "recruiterId must reference an active user");
+      }
+    }
+
     const candidate = await prisma.candidate.update({
       where: { id },
       data: updates,
@@ -75,6 +85,9 @@ export async function PATCH(request: Request, context: RouteContext) {
           select: { id: true, title: true, status: true },
         },
         rejectionReason: true,
+        recruiter: {
+          select: { id: true, name: true, email: true, image: true },
+        },
       },
     });
 

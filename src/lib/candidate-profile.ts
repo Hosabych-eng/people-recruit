@@ -57,6 +57,20 @@ export function serializeCandidateProfile(
     score: candidate.score,
     expectedSalary: candidate.expectedSalary,
     salaryCurrency: candidate.salaryCurrency,
+    location: candidate.location,
+    telegram: candidate.telegram,
+    offerLink: candidate.offerLink,
+    firstContactDate: candidate.firstContactDate?.toISOString() ?? null,
+    lastContactDate: candidate.lastContactDate?.toISOString() ?? null,
+    recruiterId: candidate.recruiterId,
+    recruiter: candidate.recruiter
+      ? {
+          id: candidate.recruiter.id,
+          name: candidate.recruiter.name,
+          email: candidate.recruiter.email,
+          image: candidate.recruiter.image,
+        }
+      : null,
     applicationSource: candidate.applicationSource,
     isNew: candidate.isNew,
     createdAt: candidate.createdAt.toISOString(),
@@ -124,5 +138,12 @@ export function serializeCandidateProfile(
     customFields: Object.fromEntries(
       candidate.customFieldValues.map((row) => [row.fieldKey, row.value ?? ""]),
     ),
+    links: candidate.links.map((link) => ({
+      id: link.id,
+      label: link.label,
+      url: link.url,
+      createdAt: link.createdAt.toISOString(),
+      updatedAt: link.updatedAt.toISOString(),
+    })),
   };
 }

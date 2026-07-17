@@ -20,8 +20,14 @@ export const candidateProfileSelect = {
   jobId: true,
   stageId: true,
   recruiterId: true,
+  location: true,
+  telegram: true,
+  offerLink: true,
+  firstContactDate: true,
+  lastContactDate: true,
   stage: { select: { id: true, name: true } },
   job: { select: { id: true, title: true } },
+  recruiter: { select: { id: true, name: true, email: true, image: true } },
   tagAssignments: {
     select: {
       tag: { select: { id: true, name: true, color: true } },
@@ -121,6 +127,16 @@ export const candidateProfileSelect = {
   },
   customFieldValues: {
     select: { fieldKey: true, value: true },
+  },
+  links: {
+    select: {
+      id: true,
+      label: true,
+      url: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+    orderBy: { createdAt: "asc" as const },
   },
 } satisfies Prisma.CandidateSelect;
 

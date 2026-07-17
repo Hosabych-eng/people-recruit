@@ -99,6 +99,12 @@ export type UpdateCandidateInput = Partial<{
   coverLetter: string | null;
   rejectionReasonId: string | null;
   rejectionNote: string | null;
+  location: string | null;
+  telegram: string | null;
+  offerLink: string | null;
+  firstContactDate: string | null;
+  lastContactDate: string | null;
+  recruiterId: string | null;
 }>;
 
 export type CandidateTag = {
@@ -289,6 +295,13 @@ export type CandidateProfile = {
   createdAt: string;
   expectedSalary: number | null;
   salaryCurrency: string | null;
+  location: string | null;
+  telegram: string | null;
+  offerLink: string | null;
+  firstContactDate: string | null;
+  lastContactDate: string | null;
+  recruiterId: string | null;
+  recruiter: { id: string; name: string | null; email: string | null; image: string | null } | null;
   stage: { id: string; name: string };
   job: { id: string; title: string };
   tags: CandidateTag[];
@@ -299,9 +312,18 @@ export type CandidateProfile = {
   testAssignments: CandidateTestAssignment[];
   documents: CandidateDocument[];
   customFields: Record<string, string>;
+  links: CandidateLink[];
   skills?: string[];
   evaluationAverage?: number | null;
   experienceYears?: number | null;
+};
+
+export type CandidateLink = {
+  id: string;
+  label: string;
+  url: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type CandidateFieldSchemaItem = {
