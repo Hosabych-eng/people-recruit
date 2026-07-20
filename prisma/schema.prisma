@@ -284,12 +284,11 @@ model Job {
   employmentType   String?
   status           JobStatus   @default(DRAFT)
   headcount        Int         @default(1)
-  recruiterId      String?
   openedAt         DateTime?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
-  recruiter       User?                  @relation("JobRecruiter", fields: [recruiterId], references: [id], onDelete: SetNull)
+  recruiters      User[]                 @relation("JobRecruiter")
   stages          Stage[]
   candidates      Candidate[]
   applications    CandidateApplication[]
@@ -297,7 +296,6 @@ model Job {
   evaluationCriteria JobEvaluationCriterion[]
 
   @@index([status])
-  @@index([recruiterId])
   @@map("jobs")
 }
 

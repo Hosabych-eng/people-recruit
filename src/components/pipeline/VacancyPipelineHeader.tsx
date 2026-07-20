@@ -12,7 +12,7 @@ export const PIPELINE_SUB_TABS = [
   { id: "documents", label: "Документи", enabled: false },
   { id: "campaigns", label: "Кампанії", enabled: false },
   { id: "reports", label: "Звіти", enabled: true },
-  { id: "details", label: "Деталі вакансії", enabled: false },
+  { id: "details", label: "Деталі вакансії", enabled: true },
   { id: "activity", label: "Активність", enabled: false },
 ] as const;
 

@@ -60,7 +60,11 @@ async function ensureJobForVacancy(
       title: vacancy.title,
       description: vacancy.description?.trim() || vacancy.title,
       status: vacancy.state === "opened" ? "OPEN" : "DRAFT",
-      recruiterId: recruiterId ?? null,
+      recruiters: recruiterId
+        ? {
+            connect: [{ id: recruiterId }],
+          }
+        : undefined,
       openedAt: vacancy.state === "opened" ? new Date() : undefined,
       stages: {
         create: stageNames.map((name, index) => ({

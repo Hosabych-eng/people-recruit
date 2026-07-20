@@ -11,7 +11,11 @@ export function recruiterCandidateFilter(
 
 export function recruiterJobFilter(user: SessionUser): Prisma.JobWhereInput {
   if (user.role === "ADMIN") return {};
-  return { recruiterId: user.id };
+  return {
+    recruiters: {
+      some: { id: user.id },
+    },
+  };
 }
 
 export function assertCandidateAccess(
@@ -25,11 +29,11 @@ export function assertCandidateAccess(
 }
 
 export function assertJobAccess(
-  job: { recruiterId: string | null },
+  job: { recruiters: { id: string }[] },
   user: SessionUser,
 ) {
   if (user.role === "ADMIN") return;
-  if (job.recruiterId !== user.id) {
+  if (!job.recruiters.some((recruiter) => recruiter.id === user.id)) {
     throw new ApiError(403, "Немає доступу до цієї вакансії");
   }
 }

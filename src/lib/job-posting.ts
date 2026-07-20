@@ -44,3 +44,11 @@ export function toPublicJobPosting(job: {
     status: job.status,
   };
 }
+
+export function stripHtmlToText(value: string): string {
+  if (!value) return "";
+  return value
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}

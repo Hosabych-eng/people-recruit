@@ -68,6 +68,8 @@ export type CreateJobInput = {
   status?: JobStatus;
   location?: string;
   employmentType?: string;
+  pipelineId?: string;
+  recruiterIds?: string[];
 };
 
 export type UpdateJobInput = Partial<CreateJobInput>;

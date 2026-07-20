@@ -7,7 +7,12 @@ import {
 import type { SessionUser } from "@/lib/auth-session";
 
 export async function getJobOrThrow(id: string, user?: SessionUser) {
-  const job = await prisma.job.findUnique({ where: { id } });
+  const job = await prisma.job.findUnique({
+    where: { id },
+    include: {
+      recruiters: { select: { id: true } },
+    },
+  });
   if (!job) {
     throw new ApiError(404, "Job not found");
   }

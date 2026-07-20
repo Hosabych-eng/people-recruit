@@ -42,6 +42,9 @@ export function parseCreateJobBody(body: Record<string, unknown>) {
     status: parseJobStatus(body.status),
     location: optionalString(body.location),
     employmentType: optionalString(body.employmentType),
+    pipelineId:
+      body.pipelineId === undefined ? undefined : requireString(body.pipelineId, "pipelineId"),
+    recruiterIds: parseOptionalRecruiterIds(body.recruiterIds),
   };
 }
 
@@ -50,7 +53,9 @@ export function parseUpdateJobBody(body: Record<string, unknown>) {
     title?: string;
     description?: string;
     status?: JobStatus;
-    recruiterId?: string | null;
+    location?: string | null;
+    employmentType?: string | null;
+    recruiterIds?: string[];
   } = {};
 
   if ("title" in body) updates.title = requireString(body.title, "title");
@@ -58,9 +63,18 @@ export function parseUpdateJobBody(body: Record<string, unknown>) {
     updates.description = requireString(body.description, "description");
   }
   if ("status" in body) updates.status = requireJobStatus(body.status);
-  if ("recruiterId" in body) {
-    updates.recruiterId =
-      body.recruiterId === null ? null : optionalString(body.recruiterId) ?? null;
+  if ("location" in body) {
+    updates.location =
+      body.location === null ? null : optionalString(body.location) ?? null;
+  }
+  if ("employmentType" in body) {
+    updates.employmentType =
+      body.employmentType === null
+        ? null
+        : optionalString(body.employmentType) ?? null;
+  }
+  if ("recruiterIds" in body) {
+    updates.recruiterIds = parseRequiredRecruiterIds(body.recruiterIds);
   }
 
   if (Object.keys(updates).length === 0) {
@@ -68,6 +82,33 @@ export function parseUpdateJobBody(body: Record<string, unknown>) {
   }
 
   return updates;
+}
+
+function parseOptionalRecruiterIds(
+  value: unknown,
+): string[] | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return undefined;
+  return parseRequiredRecruiterIds(value);
+}
+
+function parseRequiredRecruiterIds(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    throw new ApiError(400, "recruiterIds must be an array of strings");
+  }
+
+  const ids = value.map((item, index) => {
+    if (typeof item !== "string" || !item.trim()) {
+      throw new ApiError(400, `recruiterIds[${index}] must be a non-empty string`);
+    }
+    return item.trim();
+  });
+
+  if (ids.length === 0) {
+    throw new ApiError(400, "recruiterIds cannot be empty");
+  }
+
+  return [...new Set(ids)];
 }
 
 export function parseCreateCandidateBody(body: Record<string, unknown>) {

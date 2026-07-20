@@ -6,6 +6,12 @@ import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { formControlClassName, formLabelClassName } from "@/components/ui/formStyles";
 import { api } from "@/lib/api/client";
+import { noteHtmlIsEmpty } from "@/lib/note-html";
+import { JobDescriptionRichTextEditor } from "@/components/jobs/JobDescriptionRichTextEditor";
+import { MultiSelect } from "@/components/ui/MultiSelect";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
+import { JOB_LOCATION_OPTIONS } from "@/lib/job-locations";
+import type { JobWithCounts } from "@/types";
 
 export type CreatedVacancy = Job & { stages: Stage[] };
 
@@ -30,8 +36,15 @@ export function CreateVacancyModal({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [employmentType, setEmploymentType] = useState(EMPLOYMENT_TYPES[0]);
-  const [location, setLocation] = useState("Europe");
+  const [location, setLocation] = useState<string | null>("Europe");
+  const [pipelineTemplates, setPipelineTemplates] = useState<JobWithCounts[]>([]);
+  const [hiringPipelineId, setHiringPipelineId] = useState<string | null>(null);
+  const [recruiters, setRecruiters] = useState<
+    Array<{ id: string; name: string | null; email: string; image: string | null }>
+  >([]);
+  const [selectedRecruiterIds, setSelectedRecruiterIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingMeta, setIsLoadingMeta] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -41,8 +54,43 @@ export function CreateVacancyModal({
     setDescription("");
     setEmploymentType(EMPLOYMENT_TYPES[0]);
     setLocation("Europe");
+    setHiringPipelineId(null);
+    setSelectedRecruiterIds([]);
+    setPipelineTemplates([]);
+    setRecruiters([]);
     setError(null);
     setIsSubmitting(false);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let cancelled = false;
+    setIsLoadingMeta(true);
+    setError(null);
+
+    Promise.all([api.jobs.list(), api.recruiters.list()])
+      .then(([jobs, recruiters]) => {
+        if (cancelled) return;
+
+        const drafts = jobs.filter((job) => job.status === "DRAFT");
+        setPipelineTemplates(drafts);
+        if (drafts.length > 0) setHiringPipelineId(drafts[0].id);
+
+        setRecruiters(recruiters);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : "Не вдалося завантажити дані");
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setIsLoadingMeta(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen]);
 
   useEffect(() => {
@@ -64,12 +112,32 @@ export function CreateVacancyModal({
     setError(null);
 
     try {
+      if (!title.trim()) {
+        throw new Error("Назва є обовʼязковою");
+      }
+      if (noteHtmlIsEmpty(description)) {
+        throw new Error("Опис є обовʼязковим");
+      }
+      if (!location) {
+        throw new Error("Локація є обовʼязковою");
+      }
+      if (!hiringPipelineId) {
+        throw new Error("Етапи вакансії є обовʼязковими");
+      }
+      if (selectedRecruiterIds.length === 0) {
+        throw new Error("Потрібно вибрати хоча б одного рекрутера");
+      }
+
+      const locationValue = location.trim();
+
       const job = await api.jobs.create({
         title: title.trim(),
         description: description.trim(),
         employmentType: employmentType.trim(),
-        location: location.trim(),
+        location: locationValue,
         status: "OPEN",
+        pipelineId: hiringPipelineId,
+        recruiterIds: selectedRecruiterIds,
       });
       onCreated(job);
       onClose();
@@ -123,14 +191,7 @@ export function CreateVacancyModal({
 
           <label className="block">
             <span className={formLabelClassName}>Опис</span>
-            <textarea
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              required
-              rows={4}
-              className={`${formControlClassName} resize-y`}
-              placeholder="Короткий опис вакансії для кандидатів…"
-            />
+            <JobDescriptionRichTextEditor value={description} onChange={setDescription} disabled={isLoadingMeta} />
           </label>
 
           <label className="block">
@@ -150,13 +211,43 @@ export function CreateVacancyModal({
 
           <label className="block">
             <span className={formLabelClassName}>Локація</span>
-            <input
+            <SearchableSelect
+              items={JOB_LOCATION_OPTIONS}
               value={location}
-              onChange={(event) => setLocation(event.target.value)}
-              required
-              className={formControlClassName}
-              placeholder="Europe"
+              onChange={setLocation}
+              disabled={isLoadingMeta}
             />
+          </label>
+
+          <label className="block">
+            <span className={formLabelClassName}>Етапи вакансії</span>
+            <SearchableSelect
+              items={pipelineTemplates.map((job) => ({
+                value: job.id,
+                label: `${job.title} · ${job.stages.length} етап(ів)`,
+              }))}
+              value={hiringPipelineId}
+              onChange={setHiringPipelineId}
+              placeholder={isLoadingMeta ? "Завантаження…" : "Оберіть етапи вакансії"}
+              disabled={isLoadingMeta || pipelineTemplates.length === 0}
+            />
+          </label>
+
+          <label className="block">
+            <span className={formLabelClassName}>Рекрутери</span>
+            <MultiSelect
+              items={recruiters.map((row) => ({
+                value: row.id,
+                label: row.name ?? row.email,
+              }))}
+              value={selectedRecruiterIds}
+              onChange={setSelectedRecruiterIds}
+              placeholder={isLoadingMeta ? "Завантаження…" : "Оберіть рекрутера(ів)"}
+              disabled={isLoadingMeta || recruiters.length === 0}
+            />
+            <p className="mt-1 text-xs text-muted">
+              Щонайменше один рекрутер.
+            </p>
           </label>
 
           {error && (

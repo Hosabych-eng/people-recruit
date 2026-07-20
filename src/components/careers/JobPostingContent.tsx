@@ -1,5 +1,6 @@
 import type { PublicJobPosting } from "@/lib/job-posting";
 import { JobBulletList } from "@/components/careers/JobBulletList";
+import { isProbablyHtml, sanitizeNoteHtml } from "@/lib/note-html";
 
 type JobPostingContentProps = {
   job: PublicJobPosting;
@@ -17,11 +18,19 @@ export function JobPostingContent({ job }: JobPostingContentProps) {
       {job.description && (
         <section className="mb-10">
           <div className="prose-career text-[15px] leading-7 text-foreground/90">
-            {job.description.split("\n\n").map((paragraph) => (
-              <p key={paragraph} className="mb-4 last:mb-0">
-                {paragraph}
-              </p>
-            ))}
+            {isProbablyHtml(job.description) ? (
+              <div
+                dangerouslySetInnerHTML={{
+                  __html: sanitizeNoteHtml(job.description),
+                }}
+              />
+            ) : (
+              job.description.split("\n\n").map((paragraph) => (
+                <p key={paragraph} className="mb-4 last:mb-0">
+                  {paragraph}
+                </p>
+              ))
+            )}
           </div>
         </section>
       )}

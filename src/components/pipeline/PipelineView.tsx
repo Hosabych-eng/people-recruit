@@ -316,6 +316,9 @@ export function PipelineView() {
             if (tab === "reports") {
               router.push(`/vacancies/${pipeline.id}/reports`);
             }
+            if (tab === "details") {
+              router.push(`/vacancies/${pipeline.id}/details`);
+            }
           }}
         />
       )}

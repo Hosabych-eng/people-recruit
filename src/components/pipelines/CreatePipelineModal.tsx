@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { formControlClassName, formLabelClassName } from "@/components/ui/formStyles";
 import { api } from "@/lib/api/client";
+import { JobDescriptionRichTextEditor } from "@/components/jobs/JobDescriptionRichTextEditor";
+import { noteHtmlIsEmpty } from "@/lib/note-html";
 
 type CreatePipelineModalProps = {
   isOpen: boolean;
@@ -40,9 +42,9 @@ export function CreatePipelineModal({
     try {
       const job = await api.jobs.create({
         title: title.trim(),
-        description:
-          description.trim() ||
-          "Налаштуйте етапи воронки для цієї посади.",
+        description: noteHtmlIsEmpty(description)
+          ? "Налаштуйте етапи воронки для цієї посади."
+          : description.trim(),
         status: "DRAFT",
       });
       onCreated(job.id);
@@ -94,11 +96,10 @@ export function CreatePipelineModal({
 
             <label className="block space-y-2">
               <span className={formLabelClassName}>Опис (необовʼязково)</span>
-              <textarea
-                rows={3}
+              <JobDescriptionRichTextEditor
                 value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                className={`${formControlClassName} resize-y`}
+                onChange={setDescription}
+                disabled={isSubmitting}
                 placeholder="Короткий опис процесу найму"
               />
             </label>

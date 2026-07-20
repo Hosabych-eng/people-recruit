@@ -64,7 +64,7 @@ export async function POST(request: Request) {
         salaryCurrency,
         jobId: job.id,
         stageId: firstStage.id,
-        recruiterId: job.recruiterId,
+        recruiterId: job.recruiters[0]?.id ?? null,
         applicationSource: "CAREERS",
         isNew: true,
       },

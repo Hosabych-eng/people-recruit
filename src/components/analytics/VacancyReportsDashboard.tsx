@@ -115,6 +115,9 @@ export function VacancyReportsDashboard({
             if (tab === "cycle") {
               window.location.href = `/recruiting?job=${pipeline.id}`;
             }
+            if (tab === "details") {
+              window.location.href = `/vacancies/${pipeline.id}/details`;
+            }
           }}
           onShare={() => {
             const url = `${window.location.origin}/vacancies/${pipeline.id}/reports`;

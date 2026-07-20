@@ -8,6 +8,7 @@ import {
   parseJsonBody,
 } from "@/lib/api/response";
 import { parseUpdateJobBody } from "@/lib/api/validation";
+import { noteHtmlIsEmpty, sanitizeNoteHtml } from "@/lib/note-html";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -22,6 +23,7 @@ export async function GET(_request: Request, context: RouteContext) {
     const jobWithCounts = await prisma.job.findUnique({
       where: { id: job.id },
       include: {
+        recruiters: { select: { id: true } },
         stages: {
           orderBy: { orderInPipeline: "asc" },
           include: {
@@ -51,6 +53,11 @@ export async function PATCH(request: Request, context: RouteContext) {
     const body = await parseJsonBody<Record<string, unknown>>(request);
     const updates = parseUpdateJobBody(body);
 
+  if (updates.description !== undefined) {
+    const description = sanitizeNoteHtml(updates.description);
+    updates.description = noteHtmlIsEmpty(description) ? "" : description;
+  }
+
     const updateKeys = Object.keys(updates);
     const isStatusOnly = updateKeys.length === 1 && updateKeys[0] === "status";
     if (!isStatusOnly && session.role !== "ADMIN") {
@@ -60,13 +67,23 @@ export async function PATCH(request: Request, context: RouteContext) {
       );
     }
 
+    const { recruiterIds, status, ...rest } = updates;
+
     const job = await prisma.job.update({
       where: { id },
       data: {
-        ...updates,
-        ...(updates.status === "OPEN" ? { openedAt: new Date() } : {}),
+        ...rest,
+        ...(recruiterIds
+          ? {
+              recruiters: {
+                set: recruiterIds.map((id) => ({ id })),
+              },
+            }
+          : {}),
+        ...(status === "OPEN" ? { openedAt: new Date() } : {}),
       },
       include: {
+        recruiters: { select: { id: true } },
         stages: {
           orderBy: { orderInPipeline: "asc" },
         },

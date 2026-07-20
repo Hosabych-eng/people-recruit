@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { stripHtmlToText } from "@/lib/job-posting";
 
 export type CareersJobItem = {
   id: string;
@@ -39,7 +40,9 @@ export function CareersPageClient({ jobs }: CareersPageClientProps) {
                 className="block rounded-2xl border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md"
               >
                 <h2 className="text-lg font-semibold text-foreground">{job.title}</h2>
-                <p className="mt-2 line-clamp-2 text-sm text-muted">{job.description}</p>
+                <p className="mt-2 line-clamp-2 text-sm text-muted">
+                  {stripHtmlToText(job.description)}
+                </p>
                 <div className="mt-3 flex flex-wrap gap-3 text-xs font-medium text-career-accent-strong">
                   <span>{job.employmentType}</span>
                   <span aria-hidden>•</span>
