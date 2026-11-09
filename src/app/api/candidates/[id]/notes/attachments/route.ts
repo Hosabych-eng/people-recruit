@@ -4,6 +4,7 @@ import { ApiError, errorResponse, jsonResponse } from "@/lib/api/response";
 import { requireSessionUser } from "@/lib/auth/server";
 import {
   assertDocumentMimeType,
+  deleteStoredFile,
   saveUploadedFile,
 } from "@/lib/file-storage";
 import { serializeCandidateDocument } from "@/lib/test-assignments";
@@ -38,28 +39,33 @@ export async function POST(request: Request, context: RouteContext) {
       candidateId: id,
     });
 
-    const document = await prisma.candidateDocument.create({
-      data: {
-        candidateId: id,
-        category: "OTHER",
-        title: `Примітка: ${saved.fileName}`,
-        fileName: saved.fileName,
-        filePath: saved.filePath,
-        mimeType: saved.mimeType,
-        fileSize: saved.fileSize,
-        uploadedById: session.id,
-        uploadedByName: session.name,
-      },
-    });
+    try {
+      const document = await prisma.candidateDocument.create({
+        data: {
+          candidateId: id,
+          category: "OTHER",
+          title: `Примітка: ${saved.fileName}`,
+          fileName: saved.fileName,
+          filePath: saved.filePath,
+          mimeType: saved.mimeType,
+          fileSize: saved.fileSize,
+          uploadedById: session.id,
+          uploadedByName: session.name,
+        },
+      });
 
-    const serialized = serializeCandidateDocument(document);
-    return jsonResponse(
-      {
-        ...serialized,
-        url: `/api/candidates/${id}/documents/${document.id}`,
-      },
-      201,
-    );
+      const serialized = serializeCandidateDocument(document);
+      return jsonResponse(
+        {
+          ...serialized,
+          url: `/api/candidates/${id}/documents/${document.id}`,
+        },
+        201,
+      );
+    } catch (error) {
+      await deleteStoredFile(saved.filePath);
+      throw error;
+    }
   } catch (error) {
     return errorResponse(error);
   }

@@ -16,6 +16,10 @@ import { assignTalentPoolTags } from "@/lib/candidate-talent-pool";
 import { syncCandidateApplication } from "@/lib/settings/defaults";
 import { maybeTriggerTestAssignmentAutomation } from "@/lib/test-assignment-automation";
 import {
+  deleteStoredFiles,
+  listCandidateDocumentPaths,
+} from "@/lib/stored-file-cleanup";
+import {
   HIRED_STAGE_NAME,
   logWorkforceEvent,
 } from "@/lib/workforce-events";
@@ -148,7 +152,10 @@ export async function DELETE(_request: Request, context: RouteContext) {
     const { id } = await context.params;
     await getCandidateOrThrow(id, session);
 
+    // DB cascade removes CandidateDocument rows; collect paths first so files are not orphaned.
+    const filePaths = await listCandidateDocumentPaths([id]);
     await prisma.candidate.delete({ where: { id } });
+    await deleteStoredFiles(filePaths);
 
     return jsonResponse({ success: true });
   } catch (error) {
