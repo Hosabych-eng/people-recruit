@@ -9,6 +9,10 @@ import {
 } from "@/lib/api/response";
 import { parseUpdateJobBody } from "@/lib/api/validation";
 import { noteHtmlIsEmpty, sanitizeNoteHtml } from "@/lib/note-html";
+import {
+  deleteStoredFiles,
+  listDocumentPathsForJob,
+} from "@/lib/stored-file-cleanup";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -103,7 +107,10 @@ export async function DELETE(_request: Request, context: RouteContext) {
     const { id } = await context.params;
     await getJobOrThrow(id);
 
+    // Job → Candidate → CandidateDocument cascades in DB; files need explicit cleanup.
+    const filePaths = await listDocumentPathsForJob(id);
     await prisma.job.delete({ where: { id } });
+    await deleteStoredFiles(filePaths);
 
     return jsonResponse({ success: true });
   } catch (error) {

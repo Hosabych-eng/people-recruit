@@ -40,20 +40,25 @@ export async function POST(request: Request) {
     assertTemplateMimeType(file.type || "application/octet-stream", file.name);
     const saved = await saveUploadedFile("test-templates", file);
 
-    const template = await prisma.testAssignmentTemplate.create({
-      data: {
-        title,
-        description: description || null,
-        fileName: saved.fileName,
-        filePath: saved.filePath,
-        mimeType: saved.mimeType,
-        fileSize: saved.fileSize,
-        uploadedById: session.id,
-        uploadedByName: session.name,
-      },
-    });
+    try {
+      const template = await prisma.testAssignmentTemplate.create({
+        data: {
+          title,
+          description: description || null,
+          fileName: saved.fileName,
+          filePath: saved.filePath,
+          mimeType: saved.mimeType,
+          fileSize: saved.fileSize,
+          uploadedById: session.id,
+          uploadedByName: session.name,
+        },
+      });
 
-    return jsonResponse(serializeTestAssignmentTemplate(template), 201);
+      return jsonResponse(serializeTestAssignmentTemplate(template), 201);
+    } catch (error) {
+      await deleteStoredFile(saved.filePath);
+      throw error;
+    }
   } catch (error) {
     return errorResponse(error);
   }
