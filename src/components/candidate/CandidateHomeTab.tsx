@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { CandidateFieldSchemaItem, CandidateNote, CandidateProfile } from "@/types";
+import type {
+  CandidateFieldSchemaItem,
+  CandidateNote,
+  CandidateProfile,
+  UpdateCandidateInput,
+} from "@/types";
 import { CandidateAdditionalInfo } from "@/components/candidate/CandidateAdditionalInfo";
 import { CandidateMetadataEditModal } from "@/components/candidate/CandidateMetadataEditModal";
 import { CandidateResumeAiSection } from "@/components/candidate/CandidateResumeAiSection";
@@ -13,9 +18,9 @@ import { Button } from "@/components/ui/Button";
 import { formLabelClassName } from "@/components/ui/formStyles";
 import { getSourceLabel } from "@/lib/application-sources";
 import { getStandardFieldDisplayValue } from "@/lib/candidate-fields";
+import { updateCandidatePartial } from "@/lib/candidates/actions";
 import { candidateHasPdfResume, resolveResumePreviewUrl } from "@/lib/resume-helpers";
 import type { ApplicationSource } from "@prisma/client";
-import { api } from "@/lib/api/client";
 
 type CandidateHomeTabProps = {
   profile: CandidateProfile;
@@ -121,10 +126,11 @@ export function CandidateHomeTab({
     (f) => QUALIFICATION_KEYS.has(f.fieldKey) || f.isCustom,
   );
 
-  const patchProfileField = async (
-    patch: Parameters<typeof api.candidates.update>[1],
-  ) => {
-    await api.candidates.update(profile.id, patch);
+  const patchProfileField = async (patch: UpdateCandidateInput) => {
+    const result = await updateCandidatePartial(profile.id, patch);
+    if (!result.ok) {
+      throw new Error(result.error);
+    }
     onProfileChange({
       ...profile,
       ...patch,
@@ -277,11 +283,6 @@ export function CandidateHomeTab({
       </div>
 
       <div className="space-y-2.5">
-        <CandidateStageSelector
-          profile={profile}
-          onProfileChange={onProfileChange}
-        />
-
         <section className="rounded-lg border border-border bg-card p-2.5 shadow-sm">
           <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted">
             Активна вакансія
@@ -290,10 +291,12 @@ export function CandidateHomeTab({
             <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-foreground">
               {activeApplication?.job.title ?? profile.job.title}
             </span>
-            <span className="rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
-              {activeApplication?.stage.name ?? profile.stage.name}
-            </span>
           </div>
+          <CandidateStageSelector
+            variant="embedded"
+            profile={profile}
+            onProfileChange={onProfileChange}
+          />
           <p className="mt-2 text-[11px] text-muted">
             Джерело: {getSourceLabel(profile.applicationSource as ApplicationSource)}
           </p>

@@ -10,11 +10,14 @@ import { api } from "@/lib/api/client";
 type CandidateStageSelectorProps = {
   profile: CandidateProfile;
   onProfileChange: (profile: CandidateProfile) => void;
+  /** `card` = standalone section; `embedded` = drop into vacancy panel (replaces badge). */
+  variant?: "card" | "embedded";
 };
 
 export function CandidateStageSelector({
   profile,
   onProfileChange,
+  variant = "card",
 }: CandidateStageSelectorProps) {
   const [stages, setStages] = useState<Array<{ id: string; name: string }>>([]);
   const [error, setError] = useState<string | null>(null);
@@ -32,12 +35,20 @@ export function CandidateStageSelector({
 
   const applyStageChange = async (
     stageId: string,
-    rejection?: { rejectionReasonId?: string; rejectionNote?: string; talentPoolTagIds?: string[] },
+    rejection?: {
+      rejectionReasonId?: string;
+      rejectionNote?: string;
+      talentPoolTagIds?: string[];
+    },
   ) => {
     setIsSaving(true);
     setError(null);
     try {
-      const updated = await api.candidates.updateStage(profile.id, stageId, rejection);
+      const updated = await api.candidates.updateStage(
+        profile.id,
+        stageId,
+        rejection,
+      );
       const stageName =
         stages.find((stage) => stage.id === stageId)?.name ?? profile.stage.name;
 
@@ -73,15 +84,13 @@ export function CandidateStageSelector({
     void applyStageChange(stageId);
   };
 
-  return (
-    <section className="rounded-lg border border-border bg-card p-2.5 shadow-sm">
-      <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted">
-        Етап кандидата
-      </h3>
+  const control = (
+    <>
       <select
         className={`${formControlClassName} text-xs`}
         value={profile.stage.id}
         disabled={isSaving || stages.length === 0}
+        aria-label="Етап кандидата"
         onChange={(event) => handleChange(event.target.value)}
       >
         {stages.length === 0 ? (
@@ -108,6 +117,26 @@ export function CandidateStageSelector({
           await applyStageChange(pendingStageId, input);
         }}
       />
+    </>
+  );
+
+  if (variant === "embedded") {
+    return (
+      <div className="mt-2 space-y-1">
+        <label className="block text-[11px] font-medium text-muted">
+          Етап
+        </label>
+        {control}
+      </div>
+    );
+  }
+
+  return (
+    <section className="rounded-lg border border-border bg-card p-2.5 shadow-sm">
+      <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted">
+        Етап кандидата
+      </h3>
+      {control}
     </section>
   );
 }
