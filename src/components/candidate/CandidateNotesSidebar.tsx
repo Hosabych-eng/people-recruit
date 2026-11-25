@@ -1,13 +1,26 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useState, type FormEvent } from "react";
 import type { CandidateNote } from "@/types";
-import { NoteRichTextEditor } from "@/components/candidate/NoteRichTextEditor";
 import { Spinner } from "@/components/ui/Spinner";
 import { getAvatarColors, getInitials } from "@/lib/avatar-colors";
 import { formatRelativeTimeUk } from "@/lib/format-relative-time";
 import { isProbablyHtml, noteHtmlIsEmpty, sanitizeNoteHtml } from "@/lib/note-html";
 import { api } from "@/lib/api/client";
+
+const NoteRichTextEditor = dynamic(
+  () =>
+    import("@/components/candidate/NoteRichTextEditor").then((mod) => ({
+      default: mod.NoteRichTextEditor,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-32 animate-pulse rounded-lg border border-border bg-slate-100" />
+    ),
+  },
+);
 
 type CandidateNotesSidebarProps = {
   candidateId: string;

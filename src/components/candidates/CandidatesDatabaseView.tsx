@@ -90,11 +90,24 @@ export function CandidatesDatabaseView() {
         setError("Спочатку створіть вакансію для імпорту кандидата");
         return;
       }
-      const pipeline = await api.jobs.pipeline(job.id);
+
+      const stages =
+        job.stages?.length > 0
+          ? job.stages.map((stage) => ({ id: stage.id, name: stage.name }))
+          : (await api.stages.list(job.id)).map((stage) => ({
+              id: stage.id,
+              name: stage.name,
+            }));
+
+      if (stages.length === 0) {
+        setError("У вакансії немає етапів воронки");
+        return;
+      }
+
       setImportPipeline({
-        id: pipeline.id,
-        title: pipeline.title,
-        stages: pipeline.stages.map((stage) => ({ id: stage.id, name: stage.name })),
+        id: job.id,
+        title: job.title,
+        stages,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не вдалося підготувати імпорт");

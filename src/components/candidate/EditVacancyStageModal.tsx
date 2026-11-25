@@ -47,15 +47,10 @@ export function EditVacancyStageModal({
     setPendingRejection(false);
     setIsLoading(true);
 
-    void api.jobs
-      .pipeline(profile.job.id)
-      .then((pipeline) => {
-        setStages(
-          pipeline.stages.map((stage) => ({ id: stage.id, name: stage.name })),
-        );
-        if (pipeline.status) {
-          setJobStatus(pipeline.status);
-        }
+    void api.stages
+      .list(profile.job.id)
+      .then((rows) => {
+        setStages(rows.map((stage) => ({ id: stage.id, name: stage.name })));
       })
       .catch(() => {
         setStages([profile.stage]);
@@ -78,12 +73,36 @@ export function EditVacancyStageModal({
         await api.jobs.update(profile.job.id, { status: jobStatus });
       }
 
+      let nextProfile: CandidateProfile = {
+        ...profile,
+        job: { ...profile.job, status: jobStatus },
+      };
+
       if (stageId !== profile.stage.id) {
-        await api.candidates.updateStage(profile.id, stageId, rejection);
+        const updated = await api.candidates.updateStage(
+          profile.id,
+          stageId,
+          rejection,
+        );
+        const stageName =
+          stages.find((stage) => stage.id === stageId)?.name ?? profile.stage.name;
+        nextProfile = {
+          ...nextProfile,
+          stage: { id: stageId, name: stageName },
+          applications: nextProfile.applications.map((row) =>
+            row.job.id === profile.job.id
+              ? {
+                  ...row,
+                  stageId,
+                  stage: { id: stageId, name: stageName },
+                }
+              : row,
+          ),
+          score: updated.score ?? nextProfile.score,
+        };
       }
 
-      const refreshed = await api.candidates.profile(profile.id);
-      onSuccess(refreshed);
+      onSuccess(nextProfile);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не вдалося зберегти");
