@@ -21,6 +21,58 @@ import {
 import { logWorkforceEvent } from "@/lib/workforce-events";
 import { syncCandidateApplication } from "@/lib/settings/defaults";
 
+const candidateListSelect = {
+  id: true,
+  name: true,
+  email: true,
+  phone: true,
+  resumeLink: true,
+  avatarUrl: true,
+  position: true,
+  englishLevel: true,
+  chineseLevel: true,
+  expectedSalary: true,
+  salaryCurrency: true,
+  applicationSource: true,
+  score: true,
+  skills: true,
+  evaluationAverage: true,
+  emailsSent: true,
+  emailsReceived: true,
+  isNew: true,
+  location: true,
+  telegram: true,
+  offerLink: true,
+  firstContactDate: true,
+  lastContactDate: true,
+  stageId: true,
+  jobId: true,
+  recruiterId: true,
+  rejectionReasonId: true,
+  createdAt: true,
+  updatedAt: true,
+  stage: {
+    select: {
+      id: true,
+      name: true,
+      orderInPipeline: true,
+      automationEnabled: true,
+      jobId: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  },
+  job: {
+    select: { id: true, title: true, status: true },
+  },
+  rejectionReason: { select: { id: true, name: true } },
+  candidateNotes: {
+    orderBy: { createdAt: "desc" as const },
+    take: 1,
+    select: { content: true, createdAt: true },
+  },
+} as const;
+
 export async function GET(request: Request) {
   try {
     const session = await requireSessionUser();
@@ -46,18 +98,7 @@ export async function GET(request: Request) {
           : {}),
       },
       orderBy: { createdAt: "desc" },
-      include: {
-        stage: true,
-        job: {
-          select: { id: true, title: true, status: true },
-        },
-        rejectionReason: true,
-        candidateNotes: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          select: { content: true, createdAt: true },
-        },
-      },
+      select: candidateListSelect,
     });
 
     const serialized = candidates.map(({ candidateNotes, ...candidate }) => ({
@@ -116,15 +157,16 @@ export async function POST(request: Request) {
       },
     });
 
-    await syncCandidateApplication(candidate.id, input.jobId, input.stageId);
-
-    await logWorkforceEvent({
-      type: "RECRUITING_IN",
-      personName: candidate.name,
-      jobTitle: job.title,
-      candidateId: candidate.id,
-      jobId: job.id,
-    });
+    await Promise.all([
+      syncCandidateApplication(candidate.id, input.jobId, input.stageId),
+      logWorkforceEvent({
+        type: "RECRUITING_IN",
+        personName: candidate.name,
+        jobTitle: job.title,
+        candidateId: candidate.id,
+        jobId: job.id,
+      }),
+    ]);
 
     return jsonResponse({ isDuplicate: false, candidate }, 201);
   } catch (error) {

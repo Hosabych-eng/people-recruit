@@ -130,6 +130,7 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
   @@map("accounts")
 }
 
@@ -141,6 +142,7 @@ model Session {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@map("sessions")
 }
 
@@ -196,6 +198,7 @@ model CandidateTagAssignment {
   tag       CandidateTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([candidateId, tagId])
+  @@index([tagId])
   @@map("candidate_tag_assignments")
 }
 
@@ -296,6 +299,7 @@ model Job {
   evaluationCriteria JobEvaluationCriterion[]
 
   @@index([status])
+  @@index([createdAt])
   @@map("jobs")
 }
 
@@ -369,9 +373,12 @@ model Candidate {
 
   @@index([stageId])
   @@index([jobId])
+  @@index([jobId, stageId])
+  @@index([jobId, createdAt])
   @@index([email])
   @@index([recruiterId])
   @@index([rejectionReasonId])
+  @@index([createdAt])
   @@map("candidates")
 }
 
@@ -404,6 +411,7 @@ model CandidateApplication {
   @@unique([candidateId, jobId])
   @@index([candidateId])
   @@index([jobId, stageId])
+  @@index([stageId])
   @@map("candidate_applications")
 }
 
@@ -491,6 +499,8 @@ model WorkforceEvent {
 
   @@index([type, occurredAt])
   @@index([occurredAt])
+  @@index([candidateId])
+  @@index([jobId])
   @@map("workforce_events")
 }
 
@@ -545,6 +555,7 @@ model CandidateTestAssignment {
   template  TestAssignmentTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
 
   @@index([candidateId, createdAt])
+  @@index([templateId])
   @@map("candidate_test_assignments")
 }
 
@@ -571,7 +582,8 @@ model CandidateDocument {
 
   candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
 
-  @@index([createdAt])
+  @@index([candidateId, createdAt])
+  @@index([candidateId, category])
   @@map("candidate_documents")
 }
 

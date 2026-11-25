@@ -156,15 +156,11 @@ export function filterPipeline(
 
           if (searchLower) {
             const skillHaystack = (candidate.skills ?? []).join(" ").toLowerCase();
-            const resumeHaystack = (
-              (candidate as PipelineCandidate & { resumeText?: string | null }).resumeText ?? ""
-            ).toLowerCase();
             const matchesSearch =
               candidate.name.toLowerCase().includes(searchLower) ||
               (candidate.email?.toLowerCase().includes(searchLower) ?? false) ||
               (candidate.phone?.toLowerCase().includes(searchLower) ?? false) ||
               skillHaystack.includes(searchLower) ||
-              resumeHaystack.includes(searchLower) ||
               (candidate.tags ?? []).some((tag) =>
                 tag.name.toLowerCase().includes(searchLower),
               );

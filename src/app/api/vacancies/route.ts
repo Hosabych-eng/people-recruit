@@ -10,7 +10,9 @@ export async function GET() {
     const jobs = await prisma.job.findMany({
       where: recruiterJobFilter(session),
       orderBy: { createdAt: "desc" },
-      include: {
+      select: {
+        id: true,
+        title: true,
         stages: {
           orderBy: { orderInPipeline: "asc" },
           take: 1,
