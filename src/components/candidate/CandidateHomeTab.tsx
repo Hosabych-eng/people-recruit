@@ -1,9 +1,9 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import type { CandidateFieldSchemaItem, CandidateNote, CandidateProfile } from "@/types";
 import { CandidateAdditionalInfo } from "@/components/candidate/CandidateAdditionalInfo";
-import { CandidateMetadataEditModal } from "@/components/candidate/CandidateMetadataEditModal";
 import { CandidateResumeAiSection } from "@/components/candidate/CandidateResumeAiSection";
 import { CandidateNotesSidebar } from "@/components/candidate/CandidateNotesSidebar";
 import { CandidateStageSelector } from "@/components/candidate/CandidateStageSelector";
@@ -16,6 +16,14 @@ import { getStandardFieldDisplayValue } from "@/lib/candidate-fields";
 import { candidateHasPdfResume, resolveResumePreviewUrl } from "@/lib/resume-helpers";
 import type { ApplicationSource } from "@prisma/client";
 import { api } from "@/lib/api/client";
+
+const CandidateMetadataEditModal = dynamic(
+  () =>
+    import("@/components/candidate/CandidateMetadataEditModal").then((mod) => ({
+      default: mod.CandidateMetadataEditModal,
+    })),
+  { ssr: false },
+);
 
 type CandidateHomeTabProps = {
   profile: CandidateProfile;
@@ -314,12 +322,14 @@ export function CandidateHomeTab({
         </section>
       </div>
 
-      <CandidateMetadataEditModal
-        profile={profile}
-        isOpen={isEditOpen}
-        onClose={() => setIsEditOpen(false)}
-        onSuccess={onProfileChange}
-      />
+      {isEditOpen && (
+        <CandidateMetadataEditModal
+          profile={profile}
+          isOpen={isEditOpen}
+          onClose={() => setIsEditOpen(false)}
+          onSuccess={onProfileChange}
+        />
+      )}
     </div>
   );
 }

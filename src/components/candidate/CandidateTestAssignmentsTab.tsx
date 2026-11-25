@@ -1,10 +1,18 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState } from "react";
 import type { CandidateTestAssignment } from "@/types";
 import { Button } from "@/components/ui/Button";
-import { SendTestAssignmentModal } from "@/components/candidate/SendTestAssignmentModal";
 import { formatRelativeTimeUk } from "@/lib/format-relative-time";
+
+const SendTestAssignmentModal = dynamic(
+  () =>
+    import("@/components/candidate/SendTestAssignmentModal").then((mod) => ({
+      default: mod.SendTestAssignmentModal,
+    })),
+  { ssr: false },
+);
 
 type CandidateTestAssignmentsTabProps = {
   candidateId: string;
@@ -75,13 +83,15 @@ export function CandidateTestAssignmentsTab({
         )}
       </div>
 
-      <SendTestAssignmentModal
-        candidateId={candidateId}
-        candidateName={candidateName}
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSent={onAssignmentSent}
-      />
+      {isModalOpen && (
+        <SendTestAssignmentModal
+          candidateId={candidateId}
+          candidateName={candidateName}
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSent={onAssignmentSent}
+        />
+      )}
     </div>
   );
 }

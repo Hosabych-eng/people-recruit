@@ -1,13 +1,21 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState } from "react";
 import type { CandidateInterview } from "@/types";
-import { ScheduleInterviewModal } from "@/components/candidate/ScheduleInterviewModal";
 import {
   INTERVIEW_STATUS_LABELS,
   INTERVIEW_STATUS_STYLES,
   INTERVIEW_TYPE_LABELS,
 } from "@/lib/candidate-profile";
+
+const ScheduleInterviewModal = dynamic(
+  () =>
+    import("@/components/candidate/ScheduleInterviewModal").then((mod) => ({
+      default: mod.ScheduleInterviewModal,
+    })),
+  { ssr: false },
+);
 
 type InterviewsTabProps = {
   candidateId: string;
@@ -124,17 +132,19 @@ export function InterviewsTab({
         )}
       </div>
 
-      <ScheduleInterviewModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onScheduled={onInterviewScheduled}
-        candidateId={candidateId}
-        candidateName={candidateName}
-        candidateEmail={candidateEmail}
-        jobTitle={jobTitle}
-        recruiterName={recruiterName}
-        recruiterEmail={recruiterEmail}
-      />
+      {isModalOpen && (
+        <ScheduleInterviewModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onScheduled={onInterviewScheduled}
+          candidateId={candidateId}
+          candidateName={candidateName}
+          candidateEmail={candidateEmail}
+          jobTitle={jobTitle}
+          recruiterName={recruiterName}
+          recruiterEmail={recruiterEmail}
+        />
+      )}
     </>
   );
 }

@@ -1,14 +1,27 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import type { Candidate } from "@prisma/client";
 import type { CandidateNote, JobWithPipeline } from "@/types";
-import { NoteRichTextEditor } from "@/components/candidate/NoteRichTextEditor";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { api } from "@/lib/api/client";
 import { isProbablyHtml, noteHtmlIsEmpty, sanitizeNoteHtml } from "@/lib/note-html";
 import { findCandidateInPipeline } from "@/lib/pipeline-utils";
+
+const NoteRichTextEditor = dynamic(
+  () =>
+    import("@/components/candidate/NoteRichTextEditor").then((mod) => ({
+      default: mod.NoteRichTextEditor,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-32 animate-pulse rounded-lg border border-border bg-slate-100" />
+    ),
+  },
+);
 
 type CandidateNotesDrawerProps = {
   pipeline: JobWithPipeline;

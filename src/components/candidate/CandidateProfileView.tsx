@@ -1,22 +1,15 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { CandidateProfile } from "@/types";
-import { CandidateEmailsTab } from "@/components/candidate/CandidateEmailsTab";
-import { CandidateOffersTab } from "@/components/candidate/CandidateOffersTab";
-import { CandidateDocumentsTab } from "@/components/candidate/CandidateDocumentsTab";
-import { CandidateTestAssignmentsTab } from "@/components/candidate/CandidateTestAssignmentsTab";
 import { CandidateHomeTab } from "@/components/candidate/CandidateHomeTab";
-import { CandidateHistoryTab } from "@/components/candidate/CandidateHistoryTab";
-import { InterviewsTab } from "@/components/candidate/InterviewsTab";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { CandidateAvatar } from "@/components/ui/CandidateAvatar";
 import { PROFILE_TABS, type CandidateProfileTab } from "@/lib/candidate-profile";
 import { CandidateProfileDetails } from "@/components/candidate/CandidateProfileDetails";
-import { EditCandidateModal } from "@/components/candidate/EditCandidateModal";
-import { EditVacancyStageModal } from "@/components/candidate/EditVacancyStageModal";
 import { Toast } from "@/components/ui/Toast";
 import { getSourceLabel } from "@/lib/application-sources";
 import { maskCandidateName } from "@/lib/blind-hiring";
@@ -24,6 +17,80 @@ import { api } from "@/lib/api/client";
 import type { ApplicationSource } from "@prisma/client";
 import { CandidateContextualHelp } from "@/components/faq/CandidateContextualHelp";
 import { isContextualFaqEnabled } from "@/lib/feature-flags";
+
+function TabPanelSkeleton() {
+  return (
+    <div className="space-y-3">
+      <div className="h-10 w-48 animate-pulse rounded-lg bg-slate-100" />
+      <div className="h-40 animate-pulse rounded-xl border border-border bg-slate-100" />
+      <div className="h-24 animate-pulse rounded-xl border border-border bg-slate-100" />
+    </div>
+  );
+}
+
+const CandidateOffersTab = dynamic(
+  () =>
+    import("@/components/candidate/CandidateOffersTab").then((mod) => ({
+      default: mod.CandidateOffersTab,
+    })),
+  { ssr: false, loading: () => <TabPanelSkeleton /> },
+);
+
+const InterviewsTab = dynamic(
+  () =>
+    import("@/components/candidate/InterviewsTab").then((mod) => ({
+      default: mod.InterviewsTab,
+    })),
+  { ssr: false, loading: () => <TabPanelSkeleton /> },
+);
+
+const CandidateEmailsTab = dynamic(
+  () =>
+    import("@/components/candidate/CandidateEmailsTab").then((mod) => ({
+      default: mod.CandidateEmailsTab,
+    })),
+  { ssr: false, loading: () => <TabPanelSkeleton /> },
+);
+
+const CandidateTestAssignmentsTab = dynamic(
+  () =>
+    import("@/components/candidate/CandidateTestAssignmentsTab").then((mod) => ({
+      default: mod.CandidateTestAssignmentsTab,
+    })),
+  { ssr: false, loading: () => <TabPanelSkeleton /> },
+);
+
+const CandidateDocumentsTab = dynamic(
+  () =>
+    import("@/components/candidate/CandidateDocumentsTab").then((mod) => ({
+      default: mod.CandidateDocumentsTab,
+    })),
+  { ssr: false, loading: () => <TabPanelSkeleton /> },
+);
+
+const CandidateHistoryTab = dynamic(
+  () =>
+    import("@/components/candidate/CandidateHistoryTab").then((mod) => ({
+      default: mod.CandidateHistoryTab,
+    })),
+  { ssr: false, loading: () => <TabPanelSkeleton /> },
+);
+
+const EditCandidateModal = dynamic(
+  () =>
+    import("@/components/candidate/EditCandidateModal").then((mod) => ({
+      default: mod.EditCandidateModal,
+    })),
+  { ssr: false },
+);
+
+const EditVacancyStageModal = dynamic(
+  () =>
+    import("@/components/candidate/EditVacancyStageModal").then((mod) => ({
+      default: mod.EditVacancyStageModal,
+    })),
+  { ssr: false },
+);
 
 type CandidateProfileViewProps = {
   profile: CandidateProfile;
@@ -379,19 +446,23 @@ export function CandidateProfileView({
         )}
       </div>
 
-      <EditCandidateModal
-        profile={profile}
-        isOpen={isEditOpen}
-        onClose={() => setIsEditOpen(false)}
-        onSuccess={handleProfileSaveSuccess}
-      />
+      {isEditOpen && (
+        <EditCandidateModal
+          profile={profile}
+          isOpen={isEditOpen}
+          onClose={() => setIsEditOpen(false)}
+          onSuccess={handleProfileSaveSuccess}
+        />
+      )}
 
-      <EditVacancyStageModal
-        profile={profile}
-        isOpen={isVacancyEditOpen}
-        onClose={() => setIsVacancyEditOpen(false)}
-        onSuccess={handleProfileSaveSuccess}
-      />
+      {isVacancyEditOpen && (
+        <EditVacancyStageModal
+          profile={profile}
+          isOpen={isVacancyEditOpen}
+          onClose={() => setIsVacancyEditOpen(false)}
+          onSuccess={handleProfileSaveSuccess}
+        />
+      )}
 
       <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />
     </div>

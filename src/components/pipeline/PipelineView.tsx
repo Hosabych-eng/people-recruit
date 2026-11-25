@@ -1,23 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import dynamic from "next/dynamic";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { Job } from "@prisma/client";
-import type { JobWithPipeline, PipelineCandidate } from "@/types";
+import type { JobWithCounts, JobWithPipeline, PipelineCandidate } from "@/types";
 import { JobSelector } from "@/components/layout/JobSelector";
 import { KanbanBoard } from "@/components/kanban/KanbanBoard";
-import { AddCandidateModal } from "@/components/candidate/AddCandidateModal";
-import { BulkResumeDropzone } from "@/components/candidate/BulkResumeDropzone";
-import { ImportCandidateModal } from "@/components/candidate/ImportCandidateModal";
-import {
-  CreateVacancyModal,
-  type CreatedVacancy,
-} from "@/components/careers/CreateVacancyModal";
 import { VacancyPipelineHeader } from "@/components/pipeline/VacancyPipelineHeader";
 import { PipelineFilterBar } from "@/components/pipeline/PipelineFilterBar";
-import { CandidateQuickPeekDrawer } from "@/components/pipeline/CandidateQuickPeekDrawer";
 import { CandidateCompareBar } from "@/components/pipeline/CandidateCompareBar";
-import { CandidateCompareModal } from "@/components/pipeline/CandidateCompareModal";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Spinner } from "@/components/ui/Spinner";
 import { Button } from "@/components/ui/Button";
@@ -31,10 +22,55 @@ import {
   type PipelineCardFilter,
 } from "@/lib/pipeline-utils";
 import { usePipelineKeyboardShortcuts } from "@/hooks/usePipelineKeyboardShortcuts";
+import type { CreatedVacancy } from "@/components/careers/CreateVacancyModal";
 
-type JobWithCounts = Job & {
-  _count: { candidates: number; stages: number };
-};
+const AddCandidateModal = dynamic(
+  () =>
+    import("@/components/candidate/AddCandidateModal").then((mod) => ({
+      default: mod.AddCandidateModal,
+    })),
+  { ssr: false },
+);
+
+const ImportCandidateModal = dynamic(
+  () =>
+    import("@/components/candidate/ImportCandidateModal").then((mod) => ({
+      default: mod.ImportCandidateModal,
+    })),
+  { ssr: false },
+);
+
+const CreateVacancyModal = dynamic(
+  () =>
+    import("@/components/careers/CreateVacancyModal").then((mod) => ({
+      default: mod.CreateVacancyModal,
+    })),
+  { ssr: false },
+);
+
+const CandidateQuickPeekDrawer = dynamic(
+  () =>
+    import("@/components/pipeline/CandidateQuickPeekDrawer").then((mod) => ({
+      default: mod.CandidateQuickPeekDrawer,
+    })),
+  { ssr: false },
+);
+
+const CandidateCompareModal = dynamic(
+  () =>
+    import("@/components/pipeline/CandidateCompareModal").then((mod) => ({
+      default: mod.CandidateCompareModal,
+    })),
+  { ssr: false },
+);
+
+const BulkResumeDropzone = dynamic(
+  () =>
+    import("@/components/candidate/BulkResumeDropzone").then((mod) => ({
+      default: mod.BulkResumeDropzone,
+    })),
+  { ssr: false },
+);
 
 export function PipelineView() {
   const router = useRouter();
@@ -69,6 +105,11 @@ export function PipelineView() {
   const [compareSelected, setCompareSelected] = useState<PipelineCandidate[]>([]);
   const [isCompareOpen, setIsCompareOpen] = useState(false);
 
+  const urlJobId = searchParams.get("job");
+  const urlJobIdRef = useRef(urlJobId);
+  urlJobIdRef.current = urlJobId;
+  const pipelineRequestIdRef = useRef(0);
+
   const loadJobs = useCallback(async () => {
     setIsLoadingJobs(true);
     setError(null);
@@ -78,8 +119,12 @@ export function PipelineView() {
       setJobs(data);
 
       if (data.length > 0) {
+        const jobFromUrl = urlJobIdRef.current;
+        const fromUrl = jobFromUrl
+          ? data.find((job) => job.id === jobFromUrl)
+          : undefined;
         const preferred =
-          data.find((job) => job.status === "OPEN") ?? data[0];
+          fromUrl ?? data.find((job) => job.status === "OPEN") ?? data[0];
         setSelectedJobId((current) => current ?? preferred.id);
       }
     } catch (err) {
@@ -90,22 +135,27 @@ export function PipelineView() {
   }, []);
 
   const loadPipeline = useCallback(async (jobId: string) => {
+    const requestId = ++pipelineRequestIdRef.current;
     setIsLoadingPipeline(true);
     setError(null);
 
     try {
       const data = await api.jobs.pipeline(jobId);
+      if (requestId !== pipelineRequestIdRef.current) return;
       setPipeline(data);
     } catch (err) {
+      if (requestId !== pipelineRequestIdRef.current) return;
       setPipeline(null);
       setError(err instanceof Error ? err.message : "Не вдалося завантажити воронку");
     } finally {
-      setIsLoadingPipeline(false);
+      if (requestId === pipelineRequestIdRef.current) {
+        setIsLoadingPipeline(false);
+      }
     }
   }, []);
 
   useEffect(() => {
-    loadJobs();
+    void loadJobs();
   }, [loadJobs]);
 
   useEffect(() => {
@@ -116,18 +166,16 @@ export function PipelineView() {
   }, []);
 
   useEffect(() => {
-    const jobFromUrl = searchParams.get("job");
-    if (jobFromUrl) {
-      setSelectedJobId(jobFromUrl);
-    }
-  }, [searchParams]);
+    if (!urlJobId) return;
+    setSelectedJobId((current) => (current === urlJobId ? current : urlJobId));
+  }, [urlJobId]);
 
   useEffect(() => {
     if (!selectedJobId) return;
     setViewFilter("active");
     setSearchQuery("");
     setCardFilters([]);
-    loadPipeline(selectedJobId);
+    void loadPipeline(selectedJobId);
   }, [selectedJobId, loadPipeline]);
 
   const filteredPipeline = useMemo(() => {
@@ -420,28 +468,28 @@ export function PipelineView() {
         )}
       </div>
 
-      {pipeline && (
-        <>
-          <AddCandidateModal
-            pipeline={pipeline}
-            isOpen={isAddCandidateOpen}
-            onClose={() => setIsAddCandidateOpen(false)}
-            onCreated={handleCandidateCreated}
-          />
-          <ImportCandidateModal
-            pipeline={{
-              id: pipeline.id,
-              title: pipeline.title,
-              stages: pipeline.stages.map((stage) => ({
-                id: stage.id,
-                name: stage.name,
-              })),
-            }}
-            isOpen={isImportCandidateOpen}
-            onClose={() => setIsImportCandidateOpen(false)}
-            onImported={handleCandidateCreated}
-          />
-        </>
+      {pipeline && isAddCandidateOpen && (
+        <AddCandidateModal
+          pipeline={pipeline}
+          isOpen={isAddCandidateOpen}
+          onClose={() => setIsAddCandidateOpen(false)}
+          onCreated={handleCandidateCreated}
+        />
+      )}
+      {pipeline && isImportCandidateOpen && (
+        <ImportCandidateModal
+          pipeline={{
+            id: pipeline.id,
+            title: pipeline.title,
+            stages: pipeline.stages.map((stage) => ({
+              id: stage.id,
+              name: stage.name,
+            })),
+          }}
+          isOpen={isImportCandidateOpen}
+          onClose={() => setIsImportCandidateOpen(false)}
+          onImported={handleCandidateCreated}
+        />
       )}
 
       {pipeline && canManageVacancies && isImportModalOpen && (
@@ -554,7 +602,7 @@ export function PipelineView() {
         </div>
       )}
 
-      {isAdmin && (
+      {isAdmin && isCreateVacancyOpen && (
         <CreateVacancyModal
           isOpen={isCreateVacancyOpen}
           onClose={() => setIsCreateVacancyOpen(false)}
@@ -562,22 +610,22 @@ export function PipelineView() {
         />
       )}
 
-      {pipeline && (
-        <>
-          <CandidateQuickPeekDrawer
-            candidateId={peekCandidateId}
-            isOpen={isPeekOpen}
-            blindHiring={blindHiring}
-            jobId={pipeline.id}
-            onClose={() => setIsPeekOpen(false)}
-          />
-          <CandidateCompareModal
-            isOpen={isCompareOpen}
-            candidates={compareSelected}
-            blindHiring={blindHiring}
-            onClose={() => setIsCompareOpen(false)}
-          />
-        </>
+      {pipeline && isPeekOpen && (
+        <CandidateQuickPeekDrawer
+          candidateId={peekCandidateId}
+          isOpen={isPeekOpen}
+          blindHiring={blindHiring}
+          jobId={pipeline.id}
+          onClose={() => setIsPeekOpen(false)}
+        />
+      )}
+      {pipeline && isCompareOpen && (
+        <CandidateCompareModal
+          isOpen={isCompareOpen}
+          candidates={compareSelected}
+          blindHiring={blindHiring}
+          onClose={() => setIsCompareOpen(false)}
+        />
       )}
     </>
   );

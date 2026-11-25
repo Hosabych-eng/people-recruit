@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CandidateProfile } from "@/types";
 import { RejectionReasonModal } from "@/components/candidate/RejectionReasonModal";
 import { Button } from "@/components/ui/Button";
@@ -59,32 +59,48 @@ export function CandidateApplicationsPanel({
       );
   }, []);
 
+  const applicationJobKey = useMemo(
+    () =>
+      [...new Set(profile.applications.map((row) => row.job.id))].sort().join(","),
+    [profile.applications],
+  );
+  const stageMapRef = useRef(stageMap);
+  stageMapRef.current = stageMap;
+
   useEffect(() => {
-    const missingJobIds = [
-      ...new Set(
-        profile.applications
-          .map((row) => row.job.id)
-          .filter((jobId) => !stageMap[jobId]?.length),
-      ),
-    ];
+    if (!applicationJobKey) return;
+    const applicationJobIds = applicationJobKey.split(",");
+    const missingJobIds = applicationJobIds.filter(
+      (jobId) => !(stageMapRef.current[jobId]?.length),
+    );
     if (missingJobIds.length === 0) return;
 
+    let cancelled = false;
     void Promise.all(
       missingJobIds.map((jobId) =>
-        api.jobs.pipeline(jobId).then((pipeline) => ({
+        api.stages.list(jobId).then((stages) => ({
           jobId,
-          stages: pipeline.stages.map((stage) => ({ id: stage.id, name: stage.name })),
+          stages: stages.map((stage) => ({ id: stage.id, name: stage.name })),
         })),
       ),
     )
       .then((rows) => {
+        if (cancelled) return;
         setStageMap((current) => ({
           ...current,
-          ...Object.fromEntries(rows.map((row) => [row.jobId, row.stages])),
+          ...Object.fromEntries(
+            rows
+              .filter((row) => !(current[row.jobId]?.length))
+              .map((row) => [row.jobId, row.stages]),
+          ),
         }));
       })
       .catch(() => undefined);
-  }, [profile.applications, stageMap]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [applicationJobKey, jobs]);
 
   const getStagesForJob = (jobId: string) => stageMap[jobId] ?? [];
 
@@ -95,8 +111,10 @@ export function CandidateApplicationsPanel({
     let stages = getStagesForJob(newJobId);
     if (stages.length === 0) {
       try {
-        const pipeline = await api.jobs.pipeline(newJobId);
-        stages = pipeline.stages.map((stage) => ({ id: stage.id, name: stage.name }));
+        stages = (await api.stages.list(newJobId)).map((stage) => ({
+          id: stage.id,
+          name: stage.name,
+        }));
         setStageMap((current) => ({ ...current, [newJobId]: stages }));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Не вдалося завантажити етапи воронки");
@@ -143,8 +161,25 @@ export function CandidateApplicationsPanel({
       throw new Error(updated.error ?? "Не вдалося оновити етап");
     }
 
-    const refreshed = await api.candidates.profile(profile.id);
-    onProfileChange(refreshed);
+    const stage = {
+      id: updated.stage?.id ?? stageId,
+      name: updated.stage?.name ?? getStagesForJob(updated.job?.id ?? "").find((s) => s.id === stageId)?.name ?? "",
+    };
+    const isPrimaryJob = updated.job?.id === profile.job.id;
+
+    onProfileChange({
+      ...profile,
+      ...(isPrimaryJob ? { stage } : {}),
+      applications: profile.applications.map((row) =>
+        row.id === applicationId
+          ? {
+              ...row,
+              stageId: stage.id,
+              stage,
+            }
+          : row,
+      ),
+    });
   };
 
   const requestStageChange = (applicationId: string, stageId: string) => {
