@@ -52,14 +52,36 @@ export async function GET(_request: Request, context: RouteContext) {
         prisma.candidateNote.findMany({
           where: { candidateId: id },
           orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            content: true,
+            authorId: true,
+            authorName: true,
+            authorPhotoUrl: true,
+            createdAt: true,
+          },
         }),
         prisma.emailMessage.findMany({
           where: { candidateId: id },
           orderBy: { sentAt: "desc" },
+          select: {
+            id: true,
+            direction: true,
+            subject: true,
+            body: true,
+            senderName: true,
+            senderEmail: true,
+            sentAt: true,
+          },
         }),
         prisma.interview.findMany({
           where: { candidateId: id },
-          include: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            type: true,
+            scheduledAt: true,
             emailMessages: {
               where: { direction: "OUTBOUND" },
               orderBy: { sentAt: "asc" },
@@ -74,7 +96,9 @@ export async function GET(_request: Request, context: RouteContext) {
         }),
         prisma.candidateApplication.findMany({
           where: { candidateId: id },
-          include: {
+          select: {
+            id: true,
+            createdAt: true,
             job: { select: { title: true } },
             stage: { select: { name: true } },
           },
@@ -82,11 +106,27 @@ export async function GET(_request: Request, context: RouteContext) {
         }),
         prisma.candidateTestAssignment.findMany({
           where: { candidateId: id },
-          include: { template: { select: { title: true } } },
+          select: {
+            id: true,
+            status: true,
+            submissionNote: true,
+            submittedAt: true,
+            createdAt: true,
+            sentById: true,
+            sentByName: true,
+            template: { select: { title: true } },
+          },
           orderBy: { createdAt: "desc" },
         }),
         prisma.workforceEvent.findMany({
           where: { candidateId: id },
+          select: {
+            id: true,
+            type: true,
+            note: true,
+            jobTitle: true,
+            occurredAt: true,
+          },
           orderBy: { occurredAt: "desc" },
         }),
       ]);

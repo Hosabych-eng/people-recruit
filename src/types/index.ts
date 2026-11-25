@@ -6,7 +6,17 @@ export type StageWithCount = Stage & {
   _count: { candidates: number };
 };
 
-export type JobWithCounts = Job & {
+/** Lean jobs-list payload (no description / long text fields). */
+export type JobWithCounts = {
+  id: string;
+  title: string;
+  location: string | null;
+  employmentType: string | null;
+  status: JobStatus;
+  headcount: number;
+  openedAt: Date | string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
   stages: { id: string; name: string }[];
   _count: { candidates: number; stages: number };
 };

@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { Job } from "@prisma/client";
-import type { JobWithPipeline, PipelineCandidate } from "@/types";
+import type { JobWithCounts, JobWithPipeline, PipelineCandidate } from "@/types";
 import { JobSelector } from "@/components/layout/JobSelector";
 import { KanbanBoard } from "@/components/kanban/KanbanBoard";
 import { AddCandidateModal } from "@/components/candidate/AddCandidateModal";
@@ -31,10 +30,6 @@ import {
   type PipelineCardFilter,
 } from "@/lib/pipeline-utils";
 import { usePipelineKeyboardShortcuts } from "@/hooks/usePipelineKeyboardShortcuts";
-
-type JobWithCounts = Job & {
-  _count: { candidates: number; stages: number };
-};
 
 export function PipelineView() {
   const router = useRouter();

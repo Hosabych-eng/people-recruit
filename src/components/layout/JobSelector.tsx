@@ -1,13 +1,17 @@
-import type { Job } from "@prisma/client";
 import { formatDaysActive } from "@/lib/days-active";
+import type { JobStatus } from "@/types";
 
-type JobWithCounts = Job & {
+type JobSelectorItem = {
+  id: string;
+  title: string;
+  status: JobStatus;
   openedAt?: Date | string | null;
+  createdAt: Date | string;
   _count?: { candidates: number; stages: number };
 };
 
 type JobSelectorProps = {
-  jobs: JobWithCounts[];
+  jobs: JobSelectorItem[];
   selectedJobId: string | null;
   onChange: (jobId: string) => void;
   disabled?: boolean;

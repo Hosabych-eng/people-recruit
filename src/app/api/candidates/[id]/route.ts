@@ -50,14 +50,26 @@ export async function PATCH(request: Request, context: RouteContext) {
     let targetStageName: string | null = null;
     const targetJobId = updates.jobId ?? existing.jobId;
 
-    if (updates.jobId) {
-      const job = await prisma.job.findUnique({
-        where: { id: updates.jobId },
-        select: { id: true },
-      });
-      if (!job) {
-        throw new ApiError(400, "jobId must reference an existing vacancy");
-      }
+    const [jobCheck, recruiterCheck] = await Promise.all([
+      updates.jobId
+        ? prisma.job.findUnique({
+            where: { id: updates.jobId },
+            select: { id: true },
+          })
+        : Promise.resolve(undefined),
+      updates.recruiterId
+        ? prisma.user.findFirst({
+            where: { id: updates.recruiterId, status: "ACTIVE" },
+            select: { id: true },
+          })
+        : Promise.resolve(undefined),
+    ]);
+
+    if (updates.jobId && !jobCheck) {
+      throw new ApiError(400, "jobId must reference an existing vacancy");
+    }
+    if (updates.recruiterId && !recruiterCheck) {
+      throw new ApiError(400, "recruiterId must reference an active user");
     }
 
     if (updates.stageId) {
@@ -77,16 +89,6 @@ export async function PATCH(request: Request, context: RouteContext) {
       await syncCandidateApplication(id, targetJobId, updates.stageId);
     } else if (updates.jobId) {
       await syncCandidateApplication(id, updates.jobId, existing.stageId);
-    }
-
-    if (updates.recruiterId) {
-      const recruiter = await prisma.user.findFirst({
-        where: { id: updates.recruiterId, status: "ACTIVE" },
-        select: { id: true },
-      });
-      if (!recruiter) {
-        throw new ApiError(400, "recruiterId must reference an active user");
-      }
     }
 
     const candidate = await prisma.candidate.update({

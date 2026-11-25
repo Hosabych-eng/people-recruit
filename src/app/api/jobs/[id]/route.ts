@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { getJobOrThrow } from "@/lib/api/helpers";
+import { assertJobAccess } from "@/lib/auth/access";
 import { requireAdminUser, requireSessionUser } from "@/lib/auth/server";
 import {
   ApiError,
@@ -18,10 +19,10 @@ export async function GET(_request: Request, context: RouteContext) {
   try {
     const session = await requireSessionUser();
     const { id } = await context.params;
-    const job = await getJobOrThrow(id, session);
 
+    // Single query: access check + detail payload (avoids getJobOrThrow + findUnique waterfall)
     const jobWithCounts = await prisma.job.findUnique({
-      where: { id: job.id },
+      where: { id },
       include: {
         recruiters: { select: { id: true } },
         stages: {
@@ -37,6 +38,11 @@ export async function GET(_request: Request, context: RouteContext) {
         },
       },
     });
+
+    if (!jobWithCounts) {
+      throw new ApiError(404, "Job not found");
+    }
+    assertJobAccess(jobWithCounts, session);
 
     return jsonResponse(jobWithCounts);
   } catch (error) {

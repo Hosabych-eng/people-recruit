@@ -6,6 +6,25 @@ import { ApiError, errorResponse, jsonResponse, parseJsonBody } from "@/lib/api/
 import { parseCreateJobBody } from "@/lib/api/validation";
 import { noteHtmlIsEmpty, sanitizeNoteHtml } from "@/lib/note-html";
 
+const jobListSelect = {
+  id: true,
+  title: true,
+  location: true,
+  employmentType: true,
+  status: true,
+  headcount: true,
+  openedAt: true,
+  createdAt: true,
+  updatedAt: true,
+  stages: {
+    orderBy: { orderInPipeline: "asc" as const },
+    select: { id: true, name: true },
+  },
+  _count: {
+    select: { candidates: true, stages: true },
+  },
+} as const;
+
 export async function GET() {
   try {
     const session = await requireSessionUser();
@@ -13,12 +32,7 @@ export async function GET() {
     const jobs = await prisma.job.findMany({
       where: recruiterJobFilter(session),
       orderBy: { createdAt: "desc" },
-      include: {
-        stages: { orderBy: { orderInPipeline: "asc" }, select: { id: true, name: true } },
-        _count: {
-          select: { candidates: true, stages: true },
-        },
-      },
+      select: jobListSelect,
     });
 
     return jsonResponse(jobs);
