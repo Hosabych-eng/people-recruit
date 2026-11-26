@@ -12,6 +12,7 @@ import { CandidateCompareBar } from "@/components/pipeline/CandidateCompareBar";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Spinner } from "@/components/ui/Spinner";
 import { Button } from "@/components/ui/Button";
+import { Toast } from "@/components/ui/Toast";
 import { api } from "@/lib/api/client";
 import {
   countCandidates,
@@ -82,6 +83,7 @@ export function PipelineView() {
   const [isLoadingJobs, setIsLoadingJobs] = useState(true);
   const [isLoadingPipeline, setIsLoadingPipeline] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [moveErrorToast, setMoveErrorToast] = useState<string | null>(null);
   const [isAddCandidateOpen, setIsAddCandidateOpen] = useState(false);
   const [isImportCandidateOpen, setIsImportCandidateOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -212,12 +214,15 @@ export function PipelineView() {
         candidateId,
         targetStageId,
       );
+      setMoveErrorToast(null);
       setPipeline(optimisticPipeline);
       try {
         await api.candidates.updateStage(candidateId, targetStageId);
       } catch (err) {
         setPipeline(previousPipeline);
-        setError(err instanceof Error ? err.message : "Failed to move candidate");
+        setMoveErrorToast(
+          err instanceof Error ? err.message : "Failed to move candidate",
+        );
       }
     },
     [pipeline],
@@ -244,7 +249,11 @@ export function PipelineView() {
   }, []);
 
   const handleKanbanError = useCallback((message: string) => {
-    setError(message);
+    setMoveErrorToast(message);
+  }, []);
+
+  const handleKanbanClearError = useCallback(() => {
+    setMoveErrorToast(null);
   }, []);
 
   const handleCandidateCreated = useCallback(async () => {
@@ -452,6 +461,7 @@ export function PipelineView() {
               onPipelineChange={handlePipelineChange}
               onSelectCandidate={handleSelectCandidate}
               onError={handleKanbanError}
+              onClearError={handleKanbanClearError}
               focusedCandidateId={focusedCandidateId}
               blindHiring={blindHiring}
               compareSelectedIds={compareSelected.map((row) => row.id)}
@@ -627,6 +637,12 @@ export function PipelineView() {
           onClose={() => setIsCompareOpen(false)}
         />
       )}
+
+      <Toast
+        message={moveErrorToast}
+        variant="error"
+        onDismiss={() => setMoveErrorToast(null)}
+      />
     </>
   );
 }

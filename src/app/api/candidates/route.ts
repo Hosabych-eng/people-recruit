@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import {
   errorResponse,
@@ -66,12 +67,33 @@ const candidateListSelect = {
     select: { id: true, title: true, status: true },
   },
   rejectionReason: { select: { id: true, name: true } },
+  tagAssignments: {
+    select: {
+      tag: { select: { id: true, name: true, color: true } },
+    },
+  },
   candidateNotes: {
     orderBy: { createdAt: "desc" as const },
     take: 1,
     select: { content: true, createdAt: true },
   },
 } as const;
+
+const DEFAULT_PAGE_SIZE = 40;
+const MIN_PAGE_SIZE = 30;
+const MAX_PAGE_SIZE = 50;
+
+function parsePage(value: string | undefined): number {
+  const parsed = Number(value ?? "1");
+  if (!Number.isInteger(parsed) || parsed < 1) return 1;
+  return parsed;
+}
+
+function parsePageSize(value: string | undefined): number {
+  const parsed = Number(value ?? String(DEFAULT_PAGE_SIZE));
+  if (!Number.isInteger(parsed)) return DEFAULT_PAGE_SIZE;
+  return Math.min(MAX_PAGE_SIZE, Math.max(MIN_PAGE_SIZE, parsed));
+}
 
 export async function GET(request: Request) {
   try {
@@ -80,33 +102,46 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const jobId = optionalQueryParam(searchParams, "jobId");
     const query = optionalQueryParam(searchParams, "q")?.trim();
+    const page = parsePage(optionalQueryParam(searchParams, "page"));
+    const pageSize = parsePageSize(optionalQueryParam(searchParams, "pageSize"));
 
-    const candidates = await prisma.candidate.findMany({
-      where: {
-        ...recruiterCandidateFilter(session),
-        ...(jobId ? { jobId } : {}),
-        ...(query
-          ? {
-              OR: [
-                { name: { contains: query, mode: "insensitive" } },
-                { email: { contains: query, mode: "insensitive" } },
-                { resumeLink: { contains: query, mode: "insensitive" } },
-                { resumeText: { contains: query, mode: "insensitive" } },
-                { skills: { has: query } },
-              ],
-            }
-          : {}),
-      },
-      orderBy: { createdAt: "desc" },
-      select: candidateListSelect,
+    const where: Prisma.CandidateWhereInput = {
+      ...recruiterCandidateFilter(session),
+      ...(jobId ? { jobId } : {}),
+      ...(query
+        ? {
+            OR: [
+              { name: { contains: query, mode: "insensitive" } },
+              { email: { contains: query, mode: "insensitive" } },
+              { resumeLink: { contains: query, mode: "insensitive" } },
+              { resumeText: { contains: query, mode: "insensitive" } },
+              { skills: { has: query } },
+            ],
+          }
+        : {}),
+    };
+
+    const [total, candidates] = await Promise.all([
+      prisma.candidate.count({ where }),
+      prisma.candidate.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        select: candidateListSelect,
+      }),
+    ]);
+
+    const items = candidates.map((row) => {
+      const { candidateNotes, tagAssignments, ...candidate } = row;
+      return {
+        ...candidate,
+        lastNote: candidateNotes[0] ?? null,
+        tags: tagAssignments.map((assignment) => assignment.tag),
+      };
     });
 
-    const serialized = candidates.map(({ candidateNotes, ...candidate }) => ({
-      ...candidate,
-      lastNote: candidateNotes[0] ?? null,
-    }));
-
-    return jsonResponse(serialized);
+    return jsonResponse({ items, total, page, pageSize });
   } catch (error) {
     return errorResponse(error);
   }

@@ -12,6 +12,7 @@ import type {
   CandidateLink,
   CandidateTestAssignment,
   CandidateWithRelations,
+  CandidatesListResponse,
   CreateCandidateInput,
   CreateCandidateNoteInput,
   CreateEmailTemplateInput,
@@ -94,12 +95,21 @@ export const api = {
   },
 
   candidates: {
-    list: (params?: { jobId?: string; q?: string }) => {
+    list: (params?: {
+      jobId?: string;
+      q?: string;
+      page?: number;
+      pageSize?: number;
+    }) => {
       const search = new URLSearchParams();
       if (params?.jobId) search.set("jobId", params.jobId);
       if (params?.q) search.set("q", params.q);
+      if (params?.page != null) search.set("page", String(params.page));
+      if (params?.pageSize != null) {
+        search.set("pageSize", String(params.pageSize));
+      }
       const query = search.toString();
-      return request<CandidateWithRelations[]>(
+      return request<CandidatesListResponse>(
         `/api/candidates${query ? `?${query}` : ""}`,
       );
     },
