@@ -344,6 +344,22 @@ export function parseCreateKnowledgeArticleBody(body: Record<string, unknown>) {
   };
 }
 
+export function parseUpdateKnowledgeArticleBody(body: Record<string, unknown>) {
+  const updates: {
+    title?: string;
+    content?: string;
+  } = {};
+
+  if ("title" in body) updates.title = requireString(body.title, "title");
+  if ("content" in body) updates.content = requireString(body.content, "content");
+
+  if (Object.keys(updates).length === 0) {
+    throw new ApiError(400, "At least one field must be provided for update");
+  }
+
+  return updates;
+}
+
 export function requireQueryParam(
   searchParams: URLSearchParams,
   key: string,

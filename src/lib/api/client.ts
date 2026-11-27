@@ -19,11 +19,13 @@ import type {
   CreateInterviewInput,
   UpdateCandidateNoteInput,
   CreateJobInput,
+  CandidateEvaluation,
   CreateKnowledgeArticleInput,
   CreateStageInput,
   EmailTemplate,
   ImportCandidateInput,
   JobDetail,
+  JobEvaluationCriterion,
   JobWithCounts,
   JobWithPipeline,
   KnowledgeArticle,
@@ -34,6 +36,7 @@ import type {
   UpdateCandidateInput,
   UpdateEmailTemplateInput,
   UpdateJobInput,
+  UpdateKnowledgeArticleInput,
   UpdateStageInput,
 } from "@/types";
 import type { Job, JobStatus, Stage } from "@prisma/client";
@@ -92,6 +95,17 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify({ stageIds }),
       }),
+
+    evaluation: {
+      get: (jobId: string) =>
+        request<JobEvaluationCriterion[]>(`/api/jobs/${jobId}/evaluation`),
+
+      save: (jobId: string, criteria: string[]) =>
+        request<JobEvaluationCriterion[]>(`/api/jobs/${jobId}/evaluation`, {
+          method: "PUT",
+          body: JSON.stringify({ criteria }),
+        }),
+    },
   },
 
   candidates: {
@@ -250,6 +264,23 @@ export const api = {
         ),
     },
 
+    evaluation: {
+      get: (candidateId: string) =>
+        request<CandidateEvaluation>(`/api/candidates/${candidateId}/evaluation`),
+
+      save: (
+        candidateId: string,
+        scores: { criterionId: string; score: number }[],
+      ) =>
+        request<{ average: number | null; scores: { score: number }[] }>(
+          `/api/candidates/${candidateId}/evaluation`,
+          {
+            method: "PUT",
+            body: JSON.stringify({ scores }),
+          },
+        ),
+    },
+
     documents: {
       list: (candidateId: string) =>
         request<CandidateDocument[]>(`/api/candidates/${candidateId}/documents`),
@@ -390,6 +421,17 @@ export const api = {
       request<KnowledgeArticle>("/api/knowledge", {
         method: "POST",
         body: JSON.stringify(input),
+      }),
+
+    update: (id: string, input: UpdateKnowledgeArticleInput) =>
+      request<KnowledgeArticle>(`/api/knowledge/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      }),
+
+    delete: (id: string) =>
+      request<{ success: boolean }>(`/api/knowledge/${id}`, {
+        method: "DELETE",
       }),
   },
 

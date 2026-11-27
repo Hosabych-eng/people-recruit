@@ -271,6 +271,7 @@ export function CandidatesDatabaseView() {
                 <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                   <tr>
                     <th className="px-4 py-2">Кандидат</th>
+                    <th className="px-4 py-2">Оцінка</th>
                     <th className="px-4 py-2">Вакансія / Етап</th>
                     <th className="px-4 py-2">Останній коментар</th>
                     <th className="px-4 py-2 text-right">Дії</th>
@@ -310,6 +311,15 @@ export function CandidatesDatabaseView() {
                               )}
                             </div>
                           </div>
+                        </td>
+                        <td className="px-4 py-2">
+                          {candidate.evaluationAverage != null ? (
+                            <span className="inline-flex rounded bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                              {candidate.evaluationAverage.toFixed(1)}/5
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted">—</span>
+                          )}
                         </td>
                         <td className="px-4 py-2 text-xs text-muted">
                           <p className="font-medium text-foreground">{candidate.job.title}</p>

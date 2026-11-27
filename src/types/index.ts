@@ -482,6 +482,33 @@ export type CreateKnowledgeArticleInput = {
   content: string;
 };
 
+export type UpdateKnowledgeArticleInput = {
+  title?: string;
+  content?: string;
+};
+
+export type JobEvaluationCriterion = {
+  id: string;
+  jobId: string;
+  name: string;
+  sortOrder: number;
+  createdAt: string;
+};
+
+export type CandidateEvaluationScoreRow = {
+  criterionId: string;
+  criterionName: string;
+  score: number;
+  authorName: string;
+  updatedAt: string;
+};
+
+export type CandidateEvaluation = {
+  average: number | null;
+  criteria: JobEvaluationCriterion[];
+  scores: CandidateEvaluationScoreRow[];
+};
+
 export type TimeToHireAnalyticsResponse = {
   period: { from: string; to: string };
   disclaimer: string;

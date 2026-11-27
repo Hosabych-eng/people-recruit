@@ -4,6 +4,8 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import type { CandidateFieldSchemaItem, CandidateNote, CandidateProfile } from "@/types";
 import { CandidateAdditionalInfo } from "@/components/candidate/CandidateAdditionalInfo";
+import { CandidateApplicationsPanel } from "@/components/candidate/CandidateApplicationsPanel";
+import { CandidateEvaluationPanel } from "@/components/candidate/CandidateEvaluationPanel";
 import { CandidateResumeAiSection } from "@/components/candidate/CandidateResumeAiSection";
 import { CandidateNotesSidebar } from "@/components/candidate/CandidateNotesSidebar";
 import { CandidateStageSelector } from "@/components/candidate/CandidateStageSelector";
@@ -11,10 +13,8 @@ import { InlineEditableField } from "@/components/candidate/InlineEditableField"
 import { CandidateAvatar } from "@/components/ui/CandidateAvatar";
 import { Button } from "@/components/ui/Button";
 import { formLabelClassName } from "@/components/ui/formStyles";
-import { getSourceLabel } from "@/lib/application-sources";
 import { getStandardFieldDisplayValue } from "@/lib/candidate-fields";
 import { candidateHasPdfResume, resolveResumePreviewUrl } from "@/lib/resume-helpers";
-import type { ApplicationSource } from "@prisma/client";
 import { api } from "@/lib/api/client";
 
 const CandidateMetadataEditModal = dynamic(
@@ -161,10 +161,6 @@ export function CandidateHomeTab({
     return getStandardFieldDisplayValue(profile, field.fieldKey);
   };
 
-  const activeApplication =
-    profile.applications.find((row) => row.job.id === profile.job.id) ??
-    profile.applications[0];
-
   return (
     <div className="grid gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,0.85fr)]">
       <div className="space-y-2.5">
@@ -290,27 +286,15 @@ export function CandidateHomeTab({
           onProfileChange={onProfileChange}
         />
 
-        <section className="rounded-lg border border-border bg-card p-2.5 shadow-sm">
-          <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted">
-            Активна вакансія
-          </h3>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-foreground">
-              {activeApplication?.job.title ?? profile.job.title}
-            </span>
-            <span className="rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
-              {activeApplication?.stage.name ?? profile.stage.name}
-            </span>
-          </div>
-          <p className="mt-2 text-[11px] text-muted">
-            Джерело: {getSourceLabel(profile.applicationSource as ApplicationSource)}
-          </p>
-          {profile.recruiter && (
-            <p className="text-[11px] text-muted">
-              Рекрутер: {profile.recruiter.name?.trim() || profile.recruiter.email}
-            </p>
-          )}
-        </section>
+        <CandidateApplicationsPanel
+          profile={profile}
+          onProfileChange={onProfileChange}
+        />
+
+        <CandidateEvaluationPanel
+          profile={profile}
+          onProfileChange={onProfileChange}
+        />
 
         <section className="rounded-lg border border-border bg-card p-2.5">
           <label className={formLabelClassName}>Коментарі рекрутера</label>

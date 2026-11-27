@@ -88,7 +88,14 @@ export function KnowledgeView() {
             ) : (
               <div className="space-y-4">
                 {articles.map((article) => (
-                  <KnowledgeArticleCard key={article.id} article={article} />
+                  <KnowledgeArticleCard
+                    key={article.id}
+                    article={article}
+                    onUpdated={loadArticles}
+                    onDeleted={(id) =>
+                      setArticles((current) => current.filter((row) => row.id !== id))
+                    }
+                  />
                 ))}
               </div>
             )}
