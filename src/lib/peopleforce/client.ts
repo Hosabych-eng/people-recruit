@@ -53,10 +53,18 @@ export type PeopleForceCandidate = {
   email?: string | null;
   phone_numbers?: { number?: string }[] | string[];
   resume?: { url?: string; file_name?: string; content_type?: string } | null;
+  /** Some list payloads expose a flat resume URL. */
+  resume_url?: string | null;
   cover_letter?: string | null;
   desired_salary?: number | null;
   desired_salary_currency?: string | null;
+  vacancy_id?: number | null;
+  vacancy?: { id?: number; title?: string } | null;
+  job?: { id?: number; title?: string } | null;
 };
+
+/** List-endpoint candidate row (may be thinner than getCandidate details). */
+export type PeopleForceCandidateListItem = PeopleForceCandidate;
 
 export type PeopleForceCandidateNote = {
   id: number;
@@ -86,12 +94,20 @@ export class PeopleForceClient {
     return response.json() as Promise<T>;
   }
 
-  private async listAll<T>(path: string): Promise<T[]> {
+  private async listAll<T>(
+    path: string,
+    options?: { delayMs?: number; maxItems?: number },
+  ): Promise<T[]> {
     const items: T[] = [];
     let page = 1;
     let pages = 1;
+    const delayMs = options?.delayMs ?? 0;
 
     while (page <= pages) {
+      if (page > 1 && delayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+
       const separator = path.includes("?") ? "&" : "?";
       const payload = await this.request<PeopleForceListResponse<T>>(
         `${path}${separator}page=${page}`,
@@ -99,21 +115,36 @@ export class PeopleForceClient {
       items.push(...(payload.data ?? []));
       pages = payload.pagination?.pages ?? 1;
       page += 1;
+
+      if (options?.maxItems != null && items.length >= options.maxItems) {
+        return items.slice(0, options.maxItems);
+      }
     }
 
     return items;
   }
 
-  listVacancies() {
-    return this.listAll<PeopleForceVacancy>("/recruitment/vacancies");
+  listVacancies(options?: { delayMs?: number }) {
+    return this.listAll<PeopleForceVacancy>("/recruitment/vacancies", options);
   }
 
-  listPipelines() {
-    return this.listAll<PeopleForcePipeline>("/recruitment/pipelines");
+  listPipelines(options?: { delayMs?: number }) {
+    return this.listAll<PeopleForcePipeline>("/recruitment/pipelines", options);
   }
 
-  listVacancyApplications(vacancyId: number) {
-    return this.listAll<PeopleForceApplication>(`/recruitment/vacancies/${vacancyId}/applications`);
+  listVacancyApplications(vacancyId: number, options?: { delayMs?: number }) {
+    return this.listAll<PeopleForceApplication>(
+      `/recruitment/vacancies/${vacancyId}/applications`,
+      options,
+    );
+  }
+
+  /** Paginated candidates list (`/recruitment/candidates`). Default 250ms between pages. */
+  listCandidates(options?: { delayMs?: number; maxItems?: number }) {
+    return this.listAll<PeopleForceCandidateListItem>("/recruitment/candidates", {
+      delayMs: options?.delayMs ?? 250,
+      maxItems: options?.maxItems,
+    });
   }
 
   getCandidate(candidateId: number) {
@@ -122,9 +153,10 @@ export class PeopleForceClient {
     );
   }
 
-  listCandidateNotes(candidateId: number) {
+  listCandidateNotes(candidateId: number, options?: { delayMs?: number }) {
     return this.listAll<PeopleForceCandidateNote>(
       `/recruitment/candidates/${candidateId}/notes`,
+      options,
     );
   }
 }

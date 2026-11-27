@@ -36,6 +36,9 @@ prisma/*.db-journal
 # Uploaded files
 storage/
 
+# PeopleForce migration output
+migration-errors.json
+
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts

@@ -73,3 +73,12 @@ export async function deleteObjectFromSupabase(bucket: string, objectPath: strin
 
   await client.storage.from(bucket).remove([objectPath]);
 }
+
+/** Durable public URL for an object (requires a public or signed-access bucket policy). */
+export function getSupabasePublicUrl(bucket: string, objectPath: string): string | null {
+  const client = getSupabaseAdminClient();
+  if (!client) return null;
+
+  const { data } = client.storage.from(bucket).getPublicUrl(objectPath);
+  return data?.publicUrl ?? null;
+}

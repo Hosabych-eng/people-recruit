@@ -14,8 +14,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PeopleRecruit | HR-робочий простір",
-  description: "Воронка найму та аналітика персоналу",
+  title: {
+    default: "PeopleRecruit | Простір для рекрутингу",
+    template: "%s | PeopleRecruit",
+  },
+  description:
+    "Система управління наймом: воронка кандидатів, вакансії та аналітика персоналу",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+  },
 };
 
 export default function RootLayout({

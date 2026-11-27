@@ -166,18 +166,32 @@ export function buildRecruitingAnalytics(
     options?.funnelStageNames?.length
       ? options.funnelStageNames
       : DEFAULT_PIPELINE_STAGES.map((stage) => stage.name);
-  const funnelCounts = funnelStageNames.map((stageName) => ({
+
+  // Map stage name → index in the displayed funnel so conversion is cumulative
+  // (reached this stage or later). Snapshot "current stage only" counts can make
+  // later stages look >100% vs an emptied top-of-funnel stage.
+  const stageIndexByName = new Map(
+    funnelStageNames.map((name, index) => [name.toLowerCase(), index]),
+  );
+
+  const funnelCounts = funnelStageNames.map((stageName, index) => ({
     stage: stageName,
-    count: candidates.filter(
-      (candidate) =>
-        candidate.stage.name.toLowerCase() === stageName.toLowerCase(),
-    ).length,
+    count: candidates.filter((candidate) => {
+      const candidateIndex = stageIndexByName.get(
+        candidate.stage.name.toLowerCase(),
+      );
+      if (candidateIndex == null) return false;
+      return candidateIndex >= index;
+    }).length,
   }));
 
   const topCount = Math.max(funnelCounts[0]?.count ?? 0, 1);
   const funnel = funnelCounts.map((item) => ({
     ...item,
-    efficiency: Math.round((item.count / topCount) * 1000) / 10,
+    efficiency: Math.min(
+      100,
+      Math.round((item.count / topCount) * 1000) / 10,
+    ),
   }));
 
   const salariesUsd = candidates

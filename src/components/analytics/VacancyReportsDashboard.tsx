@@ -53,17 +53,20 @@ function getPresetRange(preset: PeriodPreset) {
 type VacancyReportsDashboardProps = {
   jobId: string;
   initialMock?: boolean;
+  /** Demo toggle is for local/dev only — never shown in production. */
+  allowDemo?: boolean;
 };
 
 export function VacancyReportsDashboard({
   jobId,
-  initialMock = true,
+  initialMock = false,
+  allowDemo = process.env.NODE_ENV !== "production",
 }: VacancyReportsDashboardProps) {
   const initialRange = getPresetRange("30d");
   const [preset, setPreset] = useState<PeriodPreset>("30d");
   const [fromDate, setFromDate] = useState(initialRange.from);
   const [toDate, setToDate] = useState(initialRange.to);
-  const [useMock, setUseMock] = useState(initialMock);
+  const [useMock, setUseMock] = useState(allowDemo && initialMock);
   const [pipeline, setPipeline] = useState<JobWithPipeline | null>(null);
   const [data, setData] = useState<VacancyAnalyticsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -161,13 +164,15 @@ export function VacancyReportsDashboard({
                 Експорт в Excel
               </Button>
             )}
-            <Button
-              size="sm"
-              variant={useMock ? "primary" : "outline"}
-              onClick={() => setUseMock((current) => !current)}
-            >
-              {useMock ? "Демо-дані" : "Живі дані"}
-            </Button>
+            {allowDemo && (
+              <Button
+                size="sm"
+                variant={useMock ? "primary" : "outline"}
+                onClick={() => setUseMock((current) => !current)}
+              >
+                {useMock ? "Демо-дані" : "Живі дані"}
+              </Button>
+            )}
           </div>
         </div>
 
