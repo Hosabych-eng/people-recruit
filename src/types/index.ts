@@ -70,6 +70,14 @@ export type CandidateWithRelations = Candidate & {
   job: Job;
   rejectionReason?: RejectionReason | null;
   lastNote?: { content: string; createdAt: Date | string } | null;
+  tags?: CandidateTag[];
+};
+
+export type CandidatesListResponse = {
+  items: CandidateWithRelations[];
+  total: number;
+  page: number;
+  pageSize: number;
 };
 
 export type CreateJobInput = {

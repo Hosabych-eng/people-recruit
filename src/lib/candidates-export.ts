@@ -13,6 +13,18 @@ function formatDate(value: string | Date) {
   }).format(new Date(value));
 }
 
+function formatCreatedDate(value: string | Date) {
+  return new Intl.DateTimeFormat("uk-UA", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(value));
+}
+
+function tagsLabel(candidate: CandidateWithRelations) {
+  return (candidate.tags ?? []).map((tag) => tag.name).join("; ");
+}
+
 function flattenCandidates(candidates: CandidateWithRelations[]) {
   return candidates.map((candidate) => ({
     name: candidate.name,
@@ -22,12 +34,23 @@ function flattenCandidates(candidates: CandidateWithRelations[]) {
     stage: candidate.stage.name,
     source: getSourceLabel(candidate.applicationSource as ApplicationSource),
     resume: candidate.resumeLink ?? "",
+    tags: tagsLabel(candidate),
     addedAt: formatDate(candidate.createdAt),
+    createdDate: formatCreatedDate(candidate.createdAt),
   }));
 }
 
 function sanitizeFilename(value: string) {
   return value.replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "_") || "candidates";
+}
+
+/** RFC-style CSV escape; keeps Cyrillic intact for Excel/Sheets with UTF-8 BOM. */
+function escapeCsvCell(value: string | number) {
+  const text = String(value);
+  if (/[",\n\r]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
 }
 
 export function exportCandidatesToCsv(
@@ -36,23 +59,14 @@ export function exportCandidatesToCsv(
 ) {
   const rows = flattenCandidates(candidates);
   const headers = [
-    "Ім'я",
+    "Name",
     "Email",
-    "Телефон",
-    "Вакансія",
-    "Етап",
-    "Джерело",
-    "Профіль",
-    "Додано",
+    "Phone",
+    "Current Job",
+    "Stage",
+    "Created Date",
+    "Tags",
   ];
-
-  const escape = (value: string | number) => {
-    const text = String(value);
-    if (text.includes(",") || text.includes('"') || text.includes("\n")) {
-      return `"${text.replace(/"/g, '""')}"`;
-    }
-    return text;
-  };
 
   const lines = [
     headers.join(","),
@@ -63,11 +77,10 @@ export function exportCandidatesToCsv(
         row.phone,
         row.job,
         row.stage,
-        row.source,
-        row.resume,
-        row.addedAt,
+        row.createdDate,
+        row.tags,
       ]
-        .map(escape)
+        .map(escapeCsvCell)
         .join(","),
     ),
   ];
@@ -90,17 +103,18 @@ export function exportCandidatesToXlsx(
   const rows = flattenCandidates(candidates);
   const sheet = XLSX.utils.json_to_sheet(
     rows.map((row) => ({
-      "Ім'я": row.name,
+      Name: row.name,
       Email: row.email,
-      Телефон: row.phone,
-      Вакансія: row.job,
-      Етап: row.stage,
-      Джерело: row.source,
-      Профіль: row.resume,
-      Додано: row.addedAt,
+      Phone: row.phone,
+      "Current Job": row.job,
+      Stage: row.stage,
+      "Created Date": row.createdDate,
+      Tags: row.tags,
+      Source: row.source,
+      Resume: row.resume,
     })),
   );
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, sheet, "Кандидати");
+  XLSX.utils.book_append_sheet(workbook, sheet, "Candidates");
   XLSX.writeFile(workbook, `${sanitizeFilename(filename)}.xlsx`);
 }

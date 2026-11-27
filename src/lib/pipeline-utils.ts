@@ -33,13 +33,18 @@ export function moveCandidateBetweenStages(
 
   if (!movedCandidate) return pipeline;
 
+  const candidateWithStage: PipelineCandidate = {
+    ...(movedCandidate as PipelineCandidate),
+    stageId: targetStageId,
+  };
+
   return {
     ...pipeline,
     stages: stagesWithoutCandidate.map((stage) =>
       stage.id === targetStageId
         ? {
             ...stage,
-            candidates: [...stage.candidates, movedCandidate as PipelineCandidate],
+            candidates: [...stage.candidates, candidateWithStage],
           }
         : stage,
     ),

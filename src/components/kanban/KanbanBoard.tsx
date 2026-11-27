@@ -36,6 +36,7 @@ type KanbanBoardProps = {
   onPipelineChange: (pipeline: JobWithPipeline) => void;
   onSelectCandidate: (candidate: PipelineCandidate) => void;
   onError: (message: string) => void;
+  onClearError?: () => void;
   focusedCandidateId?: string | null;
   blindHiring?: boolean;
   compareSelectedIds?: string[];
@@ -64,6 +65,7 @@ export function KanbanBoard({
   onPipelineChange,
   onSelectCandidate,
   onError,
+  onClearError,
   focusedCandidateId,
   blindHiring = false,
   compareSelectedIds = [],
@@ -140,6 +142,7 @@ export function KanbanBoard({
       setIsUpdating(true);
       try {
         await api.candidates.updateStage(candidateId, targetStageId, rejection);
+        onClearError?.();
         if (!options?.skipEmailPrompt) {
           queueEmailConfirm(candidateId, targetStageId);
         }
@@ -154,7 +157,7 @@ export function KanbanBoard({
         setIsUpdating(false);
       }
     },
-    [onError, onPipelineChange, queueEmailConfirm],
+    [onClearError, onError, onPipelineChange, queueEmailConfirm],
   );
 
   const handleDragEnd = useCallback(
@@ -186,6 +189,8 @@ export function KanbanBoard({
         targetStageId,
       );
 
+      // Optimistic: update board immediately; no full pipeline refetch.
+      onClearError?.();
       onPipelineChange(optimisticPipeline);
 
       if (isRejectedStageName(targetStage.name)) {
@@ -200,7 +205,7 @@ export function KanbanBoard({
 
       await completeStageMove(candidateId, targetStageId, previousPipeline);
     },
-    [completeStageMove, onPipelineChange, fullPipeline],
+    [completeStageMove, onClearError, onPipelineChange, fullPipeline],
   );
 
   const handleRejectCancel = () => {
