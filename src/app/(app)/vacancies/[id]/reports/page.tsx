@@ -5,6 +5,8 @@ type VacancyReportsPageProps = {
   searchParams: Promise<{ mock?: string }>;
 };
 
+const allowDemo = process.env.NODE_ENV !== "production";
+
 export default async function VacancyReportsPage({
   params,
   searchParams,
@@ -13,6 +15,10 @@ export default async function VacancyReportsPage({
   const { mock } = await searchParams;
 
   return (
-    <VacancyReportsDashboard jobId={id} initialMock={mock === "1"} />
+    <VacancyReportsDashboard
+      jobId={id}
+      allowDemo={allowDemo}
+      initialMock={allowDemo && mock === "1"}
+    />
   );
 }

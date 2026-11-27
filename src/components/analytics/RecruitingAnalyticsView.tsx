@@ -104,14 +104,14 @@ export function RecruitingAnalyticsView() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-medium uppercase tracking-wider text-muted">
-              Recruitment tracking
+              Відстеження найму
             </p>
             <h1 className="text-xl font-semibold tracking-tight text-foreground">
               Аналітика та звіти
             </h1>
             <p className="mt-1 max-w-2xl text-sm text-muted">
-              Pipeline health, sourcing performance, funnel conversion, and
-              compensation insights.
+              Стан воронки, ефективність джерел, конверсія етапів та аналітика
+              компенсацій.
             </p>
           </div>
 
