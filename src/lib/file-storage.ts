@@ -12,6 +12,9 @@ import {
 
 const STORAGE_ROOT = path.join(process.cwd(), "storage", "uploads");
 
+/** Shared max size for document / template uploads (25 MB). */
+export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+
 const ALLOWED_TEMPLATE_EXTENSIONS = new Set([
   ".pdf",
   ".doc",
@@ -21,6 +24,14 @@ const ALLOWED_TEMPLATE_EXTENSIONS = new Set([
   ".xls",
   ".csv",
   ".zip",
+]);
+
+const ALLOWED_DOCUMENT_EXTENSIONS = new Set([
+  ...ALLOWED_TEMPLATE_EXTENSIONS,
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".webp",
 ]);
 
 const ALLOWED_TEMPLATE_MIME_TYPES = new Set([
@@ -156,19 +167,15 @@ export function assertDocumentMimeType(mimeType: string, fileName?: string) {
     throw new Error("Заборонений тип файлу (виконувані файли не дозволені)");
   }
 
-  if (
-    normalizedMime &&
-    normalizedMime !== "application/octet-stream" &&
-    !ALLOWED_DOCUMENT_MIME_TYPES.has(normalizedMime)
-  ) {
+  // Require an allowlisted extension so spoofed MIME cannot admit .html/.php/etc.
+  if (!extension || !ALLOWED_DOCUMENT_EXTENSIONS.has(extension)) {
     throw new Error("Непідтримуваний тип файлу");
   }
 
   if (
-    (!normalizedMime || normalizedMime === "application/octet-stream") &&
-    extension &&
-    !ALLOWED_TEMPLATE_EXTENSIONS.has(extension) &&
-    ![".png", ".jpg", ".jpeg", ".webp"].includes(extension)
+    normalizedMime &&
+    normalizedMime !== "application/octet-stream" &&
+    !ALLOWED_DOCUMENT_MIME_TYPES.has(normalizedMime)
   ) {
     throw new Error("Непідтримуваний тип файлу");
   }
@@ -183,6 +190,10 @@ export async function saveBufferToStorage(
     candidateId?: string;
   },
 ): Promise<SavedFile> {
+  if (input.buffer.byteLength > MAX_UPLOAD_BYTES) {
+    throw new Error(`Файл завеликий (макс. ${MAX_UPLOAD_BYTES / (1024 * 1024)} МБ)`);
+  }
+
   const originalName = sanitizeFileName(input.fileName);
   const extension = path.extname(originalName);
   const storedName = `${randomUUID()}${extension}`;

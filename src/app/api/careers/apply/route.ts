@@ -73,7 +73,10 @@ export async function POST(request: Request) {
     await syncCandidateApplication(candidate.id, job.id, firstStage.id);
 
     if (resumeFile instanceof File && resumeFile.size > 0) {
-      assertDocumentMimeType(resumeFile.type || "application/pdf", resumeFile.name);
+      assertDocumentMimeType(
+        resumeFile.type || "application/octet-stream",
+        resumeFile.name,
+      );
       const saved = await saveUploadedFile("candidate-documents", resumeFile, {
         candidateId: candidate.id,
       });

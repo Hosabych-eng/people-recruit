@@ -3,7 +3,11 @@ import prisma from "@/lib/prisma";
 import { getCandidateOrThrow } from "@/lib/api/helpers";
 import { sendGmailMessage } from "@/lib/google/gmail";
 import { getAuthenticatedGoogleClient } from "@/lib/google/oauth";
-import { readStoredFile, saveUploadedFile } from "@/lib/file-storage";
+import {
+  assertDocumentMimeType,
+  readStoredFile,
+  saveUploadedFile,
+} from "@/lib/file-storage";
 import {
   buildTestAssignmentBody,
   buildTestAssignmentHtml,
@@ -208,6 +212,10 @@ export async function submitTestAssignmentByToken(input: {
   }
 
   if (input.file) {
+    assertDocumentMimeType(
+      input.file.type || "application/octet-stream",
+      input.file.name,
+    );
     const saved = await saveUploadedFile("candidate-documents", input.file, {
       candidateId: assignment.candidateId,
     });

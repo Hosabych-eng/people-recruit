@@ -1,7 +1,10 @@
 import type { ApplicationSource } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { findDuplicateCandidate } from "@/lib/candidates/duplicate-check";
-import { saveRemoteFileToStorage } from "@/lib/file-storage";
+import {
+  assertDocumentMimeType,
+  saveRemoteFileToStorage,
+} from "@/lib/file-storage";
 import { logWorkforceEvent } from "@/lib/workforce-events";
 import { syncCandidateApplication } from "@/lib/settings/defaults";
 import {
@@ -90,10 +93,15 @@ async function importResumeForCandidate(
   const resumeUrl = details.resume?.url;
   if (!resumeUrl) return false;
 
+  const fileName =
+    details.resume?.file_name ?? `resume-${peopleforceCandidateId}.pdf`;
+  const mimeType = details.resume?.content_type ?? "application/octet-stream";
+  assertDocumentMimeType(mimeType, fileName);
+
   const saved = await saveRemoteFileToStorage("candidate-documents", {
     url: resumeUrl,
-    fileName: details.resume?.file_name ?? `resume-${peopleforceCandidateId}.pdf`,
-    mimeType: details.resume?.content_type ?? "application/pdf",
+    fileName,
+    mimeType,
     headers: { "X-API-KEY": apiToken },
     candidateId,
   });
