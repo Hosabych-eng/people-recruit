@@ -1,0 +1,30 @@
+---
+description: Strict project standards for Next.js, React, Tailwind, Prisma, Supabase PostgreSQL, and Vercel
+alwaysApply: true
+---
+
+# People Recruit — Project Standards
+
+Stack: Next.js, React, Tailwind, Prisma, Supabase PostgreSQL, Vercel.
+
+## 1. Prisma & Database
+
+- Always prefer lean `select` over broad `include` to avoid over-fetching.
+- Parallelize independent database queries using `Promise.all`.
+- Do NOT modify `prisma/schema.prisma` unless explicitly requested.
+- Whenever schema changes or new indexes are requested, always generate a safe, idempotent PostgreSQL script (`CREATE INDEX IF NOT EXISTS ...`) ready for Supabase SQL Editor.
+
+## 2. Frontend & UX
+
+- Use `next/dynamic` for heavy client-side components (modals, rich editors, charts).
+- Provide skeleton loaders or clean loading states for async data.
+- Avoid unnecessary re-renders and full-page refetches on minor mutations (prefer Optimistic UI).
+
+## 3. Deployment & Verification
+
+- Before finishing any task, run `npx tsc --noEmit` (and `npm run build` for major changes) to guarantee Vercel production builds will pass.
+- Keep code changes minimal and focused; do not refactor unrelated files or delete existing comments.
+
+## 4. Communication
+
+- Respond concisely in Ukrainian, using bullet points for summaries.
