@@ -309,6 +309,38 @@ export function CandidateEmailsTab({
                         >
                           {STATUS_LABELS[message.status]}
                         </span>
+                        {isOutbound && (
+                          <>
+                            <span
+                              className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                                message.isRead
+                                  ? "bg-emerald-50 text-emerald-700"
+                                  : "bg-slate-100 text-slate-600"
+                              }`}
+                              title={
+                                message.openedAt
+                                  ? `Відкрито: ${formatTimestamp(message.openedAt)}`
+                                  : undefined
+                              }
+                            >
+                              {message.isRead ? "Відкрито" : "Не відкрито"}
+                            </span>
+                            <span
+                              className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                                message.isClicked
+                                  ? "bg-indigo-50 text-indigo-700"
+                                  : "bg-slate-100 text-slate-600"
+                              }`}
+                              title={
+                                message.clickedAt
+                                  ? `Клік: ${formatTimestamp(message.clickedAt)}`
+                                  : undefined
+                              }
+                            >
+                              {message.isClicked ? "Клік" : "Без кліку"}
+                            </span>
+                          </>
+                        )}
                       </div>
                       <h3 className="mt-2 text-sm font-semibold text-foreground">
                         {message.subject}
