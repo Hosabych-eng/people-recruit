@@ -512,7 +512,7 @@ export function PipelineView() {
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-border px-5 py-4">
-              <h2 className="text-base font-semibold text-foreground">Import Candidates</h2>
+              <h2 className="text-base font-semibold text-foreground">Імпорт кандидатів</h2>
               <button
                 type="button"
                 aria-label="Close import modal"

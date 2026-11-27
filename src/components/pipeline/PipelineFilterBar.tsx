@@ -188,7 +188,7 @@ export function PipelineFilterBar({
             className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-slate-50"
           >
             <ImportIcon />
-            <span>Import Candidates</span>
+            <span>Імпорт кандидатів</span>
           </button>
 
           <DropdownMenu

@@ -98,13 +98,6 @@ export function InterviewsTab({
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted">
                     <span>{INTERVIEW_TYPE_LABELS[interview.type]}</span>
-                    <button
-                      type="button"
-                      aria-label="Дії з інтерв'ю"
-                      className="rounded p-1 text-muted hover:bg-slate-100 hover:text-foreground"
-                    >
-                      ···
-                    </button>
                   </div>
                 </div>
 

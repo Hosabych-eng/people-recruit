@@ -8,6 +8,12 @@ function isPublicPath(pathname: string) {
   if (PUBLIC_PATHS.has(pathname)) return true;
   if (pathname.startsWith("/api/auth/")) return true;
   if (pathname === "/careers" || pathname.startsWith("/careers/")) return true;
+  if (
+    pathname === "/test-assignments/submit" ||
+    pathname.startsWith("/test-assignments/submit/")
+  ) {
+    return true;
+  }
   if (pathname.startsWith("/api/public/")) return true;
   if (pathname === "/api/careers/apply") return true;
   if (pathname === "/api/careers/options") return true;

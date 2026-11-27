@@ -1,4 +1,4 @@
-import { errorResponse, jsonResponse } from "@/lib/api/response";
+import { ApiError, errorResponse, jsonResponse } from "@/lib/api/response";
 import {
   getTestAssignmentByToken,
   submitTestAssignmentByToken,
@@ -11,7 +11,7 @@ export async function GET(_request: Request, context: RouteContext) {
     const { token } = await context.params;
     const assignment = await getTestAssignmentByToken(token);
     if (!assignment) {
-      return errorResponse(new Error("Upload link not found"));
+      throw new ApiError(404, "Upload link not found");
     }
     return jsonResponse(assignment);
   } catch (error) {
