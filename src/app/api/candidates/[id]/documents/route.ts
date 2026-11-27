@@ -60,21 +60,26 @@ export async function POST(request: Request, context: RouteContext) {
       candidateId: id,
     });
 
-    const document = await prisma.candidateDocument.create({
-      data: {
-        candidateId: id,
-        category: category as "RESUME" | "PORTFOLIO" | "OFFER" | "OTHER",
-        title,
-        fileName: saved.fileName,
-        filePath: saved.filePath,
-        mimeType: saved.mimeType,
-        fileSize: saved.fileSize,
-        uploadedById: session.id,
-        uploadedByName: session.name,
-      },
-    });
+    try {
+      const document = await prisma.candidateDocument.create({
+        data: {
+          candidateId: id,
+          category: category as "RESUME" | "PORTFOLIO" | "OFFER" | "OTHER",
+          title,
+          fileName: saved.fileName,
+          filePath: saved.filePath,
+          mimeType: saved.mimeType,
+          fileSize: saved.fileSize,
+          uploadedById: session.id,
+          uploadedByName: session.name,
+        },
+      });
 
-    return jsonResponse(serializeCandidateDocument(document), 201);
+      return jsonResponse(serializeCandidateDocument(document), 201);
+    } catch (error) {
+      await deleteStoredFile(saved.filePath);
+      throw error;
+    }
   } catch (error) {
     return errorResponse(error);
   }
