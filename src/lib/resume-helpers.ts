@@ -3,6 +3,16 @@ export function isPdfUrl(url: string) {
   return normalized.endsWith(".pdf");
 }
 
+export function isLinkedInUrl(url: string | null | undefined): boolean {
+  if (!url?.trim()) return false;
+  try {
+    const host = new URL(url.trim()).hostname.toLowerCase();
+    return host === "linkedin.com" || host.endsWith(".linkedin.com");
+  } catch {
+    return /linkedin\.com/i.test(url);
+  }
+}
+
 export function isValidResumePreviewUrl(url: string | null | undefined): boolean {
   if (!url?.trim()) return false;
 

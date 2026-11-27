@@ -107,7 +107,7 @@ export function RecruitingAnalyticsView() {
               Recruitment tracking
             </p>
             <h1 className="text-xl font-semibold tracking-tight text-foreground">
-              Analytics &amp; Reports
+              Аналітика та звіти
             </h1>
             <p className="mt-1 max-w-2xl text-sm text-muted">
               Pipeline health, sourcing performance, funnel conversion, and

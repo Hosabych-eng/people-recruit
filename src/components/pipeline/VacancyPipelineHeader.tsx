@@ -7,13 +7,8 @@ import { countFilledPositions } from "@/lib/pipeline-utils";
 
 export const PIPELINE_SUB_TABS = [
   { id: "cycle", label: "Цикл", enabled: true },
-  { id: "offers", label: "Пропозиції", enabled: false },
-  { id: "discussions", label: "Обговорення", enabled: false },
-  { id: "documents", label: "Документи", enabled: false },
-  { id: "campaigns", label: "Кампанії", enabled: false },
   { id: "reports", label: "Звіти", enabled: true },
   { id: "details", label: "Деталі вакансії", enabled: true },
-  { id: "activity", label: "Активність", enabled: false },
 ] as const;
 
 export type PipelineSubTabId = (typeof PIPELINE_SUB_TABS)[number]["id"];
@@ -109,14 +104,11 @@ export function VacancyPipelineHeader({
               <li key={tab.id}>
                 <button
                   type="button"
-                  disabled={!tab.enabled}
-                  onClick={() => tab.enabled && onTabChange?.(tab.id)}
+                  onClick={() => onTabChange?.(tab.id)}
                   className={`relative whitespace-nowrap rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${
                     isActive
                       ? "text-primary after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-primary"
-                      : tab.enabled
-                        ? "text-muted hover:text-foreground"
-                        : "cursor-not-allowed text-muted/50"
+                      : "text-muted hover:text-foreground"
                   }`}
                 >
                   {tab.label}

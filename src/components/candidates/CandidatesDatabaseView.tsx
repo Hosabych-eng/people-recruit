@@ -222,7 +222,7 @@ export function CandidatesDatabaseView() {
               disabled={total === 0 || isExporting}
               onClick={() => void handleExportCsv()}
             >
-              {isExporting ? "Експорт…" : "Export CSV"}
+              {isExporting ? "Експорт…" : "Експорт у CSV"}
             </Button>
             <Button
               size="sm"
@@ -271,7 +271,6 @@ export function CandidatesDatabaseView() {
                 <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                   <tr>
                     <th className="px-4 py-2">Кандидат</th>
-                    <th className="px-4 py-2">Оцінка</th>
                     <th className="px-4 py-2">Вакансія / Етап</th>
                     <th className="px-4 py-2">Останній коментар</th>
                     <th className="px-4 py-2 text-right">Дії</th>
@@ -311,15 +310,6 @@ export function CandidatesDatabaseView() {
                               )}
                             </div>
                           </div>
-                        </td>
-                        <td className="px-4 py-2">
-                          {candidate.score != null ? (
-                            <span className="inline-flex rounded bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
-                              {candidate.score}/5
-                            </span>
-                          ) : (
-                            <span className="text-xs text-muted">—</span>
-                          )}
                         </td>
                         <td className="px-4 py-2 text-xs text-muted">
                           <p className="font-medium text-foreground">{candidate.job.title}</p>
@@ -371,7 +361,7 @@ export function CandidatesDatabaseView() {
                   disabled={!canPrev || isLoading}
                   onClick={() => setPage((current) => Math.max(1, current - 1))}
                 >
-                  Previous
+                  Назад
                 </Button>
                 <span className="text-sm text-muted">
                   {page} / {totalPages}
@@ -382,7 +372,7 @@ export function CandidatesDatabaseView() {
                   disabled={!canNext || isLoading}
                   onClick={() => setPage((current) => current + 1)}
                 >
-                  Next
+                  Далі
                 </Button>
               </div>
             </div>
@@ -392,7 +382,7 @@ export function CandidatesDatabaseView() {
         <p className="mt-4 text-sm text-muted">
           Потрібна воронка?{" "}
           <Link href="/recruiting" className="font-medium text-primary hover:underline">
-            Перейти до Recruiting
+            Перейти до Рекрутингу
           </Link>
         </p>
       </div>
